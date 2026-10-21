@@ -90,7 +90,7 @@ Both must have a valid signature and the extension must expose
 
 1. Install the signed IPA.
 2. Open RageNet and add a subscription key.
-3. Tap the sphere. iOS asks for VPN configuration permission.
+3. Tap the aperture. iOS asks for VPN configuration permission.
 4. Tap again; the Packet Tunnel extension receives the Xray config, finds the
    utun descriptor and starts libXray.
 

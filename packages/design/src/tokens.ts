@@ -156,5 +156,4 @@ export const layout = {
   headerHeight: 56,
   buttonHeight: 56,
   rowHeight: 58,
-  sphereMaxSize: 340,
 } as const;
