@@ -186,6 +186,7 @@ export function SignalAperture({ state, onToggle, size: explicitSize }: SignalAp
     startedAt.current = Date.now();
     lastPoint.current = null;
     setCharge(0);
+    tickHaptic();
     startHapticRamp(HOLD_MS, 260);
 
     chargeTimer.current = setInterval(() => {
@@ -234,7 +235,6 @@ export function SignalAperture({ state, onToggle, size: explicitSize }: SignalAp
     lastPoint.current = null;
 
     if (!wasTriggered && elapsed <= TAP_MAX_MS) {
-      tapHaptic();
       onToggle();
     }
     triggeredByHold.current = false;

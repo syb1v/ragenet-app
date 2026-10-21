@@ -131,6 +131,7 @@ export function HomeScreen() {
               ]}
             />
             <Text
+              accessibilityLiveRegion="polite"
               style={[
                 styles.statusText,
                 isConnected && styles.statusTextConnected,
