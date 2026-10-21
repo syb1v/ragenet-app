@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-10-21
+
+### Fixed
+
+- Android CI ran out of disk while unpacking all four libXray ABIs. The workflow
+  now frees runner space and uses an arm64-only trimmed AAR.
+
 ## [0.1.8] - 2026-10-21
 
 ### Added

@@ -29,6 +29,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Show disk space
+        run: df -h
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
@@ -79,11 +93,12 @@ jobs:
           path: apps/mobile/modules/ragenet-vpn/android/libs/libXray.aar
           key: libxray-${{ runner.os }}-${{ hashFiles('native/versions.json') }}
 
-      - name: Fetch libXray AAR
+      - name: Fetch libXray AAR (arm64, trimmed)
         run: |
           if [ ! -f apps/mobile/modules/ragenet-vpn/android/libs/libXray.aar ]; then
-            tools/fetch-libxray.sh
+            LIBXRAY_ABI=arm64-v8a tools/fetch-libxray.sh
           fi
+          df -h
 
       - name: Read app version
         run: |
