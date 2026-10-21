@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.14] - 2026-10-21
+
+### Fixed
+
+- Expo SDK 58 Android modules require `compileSdk 37`; the app previously used
+  36 and failed `checkDebugAarMetadata`. CI now installs `platforms;android-37`.
+
 ## [0.1.13] - 2026-10-21
 
 ### Fixed
