@@ -1,0 +1,193 @@
+name: Sign iOS IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Build iOS run ID with the unsigned Release artifact (empty = latest successful)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  CI: '1'
+
+jobs:
+  sign:
+    name: Sign app, tunnel and frameworks
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download unsigned Release IPA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID="${{ github.event.inputs.run_id }}"
+          if [ -z "$RUN_ID" ]; then
+            RUN_ID=$(gh run list \
+              --repo "${{ github.repository }}" \
+              --workflow build-ios.yml \
+              --branch main \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId')
+          fi
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "No successful Build iOS run found" >&2
+            exit 1
+          fi
+          echo "Using unsigned IPA from run $RUN_ID"
+          mkdir -p unsigned
+          gh run download "$RUN_ID" \
+            --repo "${{ github.repository }}" \
+            -n ragenet-ios-ipa-release \
+            -D unsigned || \
+          gh run download "$RUN_ID" \
+            --repo "${{ github.repository }}" \
+            -n ragenet-ios-ipa \
+            -D unsigned
+          find unsigned -name '*.ipa' -maxdepth 2 -print
+
+      - name: Import certificate and profiles
+        env:
+          CERTIFICATE_P12: ${{ secrets.IOS_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          MAIN_PROVISION: ${{ secrets.IOS_MAIN_PROVISION }}
+          TUNNEL_PROVISION: ${{ secrets.IOS_TUNNEL_PROVISION }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${CERTIFICATE_P12:?IOS_CERTIFICATE_P12 secret is missing}"
+          : "${CERTIFICATE_PASSWORD:?IOS_CERTIFICATE_PASSWORD secret is missing}"
+          : "${MAIN_PROVISION:?IOS_MAIN_PROVISION secret is missing}"
+          : "${TUNNEL_PROVISION:?IOS_TUNNEL_PROVISION secret is missing}"
+
+          KEYCHAIN="$RUNNER_TEMP/ragenet-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+
+          echo "$CERTIFICATE_P12" | base64 -D > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" \
+            -k "$KEYCHAIN" \
+            -P "$CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN"
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "$MAIN_PROVISION" | base64 -D > "$RUNNER_TEMP/main.mobileprovision"
+          echo "$TUNNEL_PROVISION" | base64 -D > "$RUNNER_TEMP/tunnel.mobileprovision"
+          cp "$RUNNER_TEMP/main.mobileprovision" \
+            "$HOME/Library/MobileDevice/Provisioning Profiles/main.mobileprovision"
+          cp "$RUNNER_TEMP/tunnel.mobileprovision" \
+            "$HOME/Library/MobileDevice/Provisioning Profiles/tunnel.mobileprovision"
+
+          security cms -D -i "$RUNNER_TEMP/main.mobileprovision" > "$RUNNER_TEMP/main.plist"
+          security cms -D -i "$RUNNER_TEMP/tunnel.mobileprovision" > "$RUNNER_TEMP/tunnel.plist"
+          plutil -extract Entitlements xml1 -o "$RUNNER_TEMP/main.entitlements" "$RUNNER_TEMP/main.plist"
+          plutil -extract Entitlements xml1 -o "$RUNNER_TEMP/tunnel.entitlements" "$RUNNER_TEMP/tunnel.plist"
+
+          echo "Main profile:"
+          plutil -extract Entitlements.application-identifier raw "$RUNNER_TEMP/main.plist" || true
+          echo "Tunnel profile:"
+          plutil -extract Entitlements.application-identifier raw "$RUNNER_TEMP/tunnel.plist" || true
+
+      - name: Validate entitlements
+        shell: bash
+        run: |
+          set -euo pipefail
+          for profile in main tunnel; do
+            if ! /usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.networking.networkextension" "$RUNNER_TEMP/${profile}.plist" 2>/dev/null | grep -q 'packet-tunnel-provider'; then
+              echo "Profile $profile does not contain packet-tunnel-provider" >&2
+              exit 1
+            fi
+          done
+          MAIN_ID=$(plutil -extract Entitlements.application-identifier raw "$RUNNER_TEMP/main.plist")
+          TUNNEL_ID=$(plutil -extract Entitlements.application-identifier raw "$RUNNER_TEMP/tunnel.plist")
+          case "$MAIN_ID" in
+            *net.ragenet.vpn) ;;
+            *) echo "Unexpected main application-identifier: $MAIN_ID" >&2; exit 1 ;;
+          esac
+          case "$TUNNEL_ID" in
+            *net.ragenet.vpn.tunnel) ;;
+            *) echo "Unexpected tunnel application-identifier: $TUNNEL_ID" >&2; exit 1 ;;
+          esac
+
+      - name: Sign nested binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/ragenet-signing.keychain-db"
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" | grep -E '"(Apple Development|Apple Distribution|iPhone Distribution)' | head -1 | awk '{print $2}')
+          if [ -z "$IDENTITY" ]; then
+            security find-identity -v -p codesigning "$KEYCHAIN"
+            echo "No Apple code-signing identity found" >&2
+            exit 1
+          fi
+
+          IPA=$(find unsigned -name '*.ipa' -maxdepth 2 | head -1)
+          WORK="$RUNNER_TEMP/ipa"
+          rm -rf "$WORK"
+          mkdir -p "$WORK"
+          unzip -q "$IPA" -d "$WORK"
+          APP="$WORK/Payload/RageNet.app"
+          APPEX="$APP/PlugIns/tunnel.appex"
+          test -d "$APPEX" || { echo "tunnel.appex not found" >&2; exit 1; }
+
+          cp "$RUNNER_TEMP/main.mobileprovision" "$APP/embedded.mobileprovision"
+          cp "$RUNNER_TEMP/tunnel.mobileprovision" "$APPEX/embedded.mobileprovision"
+
+          # Nested dylibs first.
+          while IFS= read -r -d '' binary; do
+            codesign --force --sign "$IDENTITY" --timestamp=none "$binary"
+          done < <(find "$APP/Frameworks" "$APPEX" -type f \
+            \( -name '*.dylib' -o -name '*.so' \) -print0)
+
+          # Frameworks themselves.
+          while IFS= read -r -d '' framework; do
+            codesign --force --sign "$IDENTITY" --timestamp=none "$framework"
+          done < <(find "$APP/Frameworks" -type d -name '*.framework' -print0)
+
+          # Tunnel extension with its own entitlement/profile.
+          codesign --force --sign "$IDENTITY" \
+            --entitlements "$RUNNER_TEMP/tunnel.entitlements" \
+            --timestamp=none \
+            "$APPEX"
+
+          # Main app last, so its resource seal includes the signed extension.
+          codesign --force --sign "$IDENTITY" \
+            --entitlements "$RUNNER_TEMP/main.entitlements" \
+            --timestamp=none \
+            "$APP"
+
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign -dvvv "$APP" 2>&1 | head -20
+          codesign -dvvv "$APPEX" 2>&1 | head -20
+
+          SIGNED_DIR="$GITHUB_WORKSPACE/signed"
+          rm -rf "$SIGNED_DIR"
+          mkdir -p "$SIGNED_DIR"
+          (cd "$WORK" && zip -qry "$SIGNED_DIR/RageNet-signed.ipa" Payload)
+          cp "$APPEX/Info.plist" "$SIGNED_DIR/tunnel-Info.plist"
+          echo "Signed IPA: $SIGNED_DIR/RageNet-signed.ipa"
+
+      - name: Upload signed IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: ragenet-ios-ipa-signed
+          path: signed
+          if-no-files-found: error
+          retention-days: 30
