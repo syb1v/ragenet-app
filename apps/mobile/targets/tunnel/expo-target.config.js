@@ -8,6 +8,5 @@ module.exports = {
   frameworks: ['NetworkExtension'],
   entitlements: {
     'com.apple.developer.networking.networkextension': ['packet-tunnel-provider'],
-    'com.apple.security.application-groups': ['group.net.ragenet.vpn'],
   },
 };

@@ -7,7 +7,7 @@ on:
         description: Build configuration
         type: choice
         options: [Debug, Release]
-        default: Debug
+        default: Release
   push:
     tags:
       - app-v*
@@ -126,7 +126,7 @@ jobs:
       - name: Upload IPA
         uses: actions/upload-artifact@v7
         with:
-          name: ragenet-ios-ipa
+          name: ragenet-ios-ipa-${{ env.CONFIGURATION }}
           path: artifacts
           if-no-files-found: error
           retention-days: 30

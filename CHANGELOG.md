@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.17] - 2026-10-21
+
+### Fixed
+
+- Removed the unused App Group entitlement from the iOS app and tunnel; it
+  complicated signing without being used by the provider configuration.
+- iOS workflow defaults to `Release` and names artifacts
+  `ragenet-ios-ipa-release` / `ragenet-ios-ipa-debug`, so an installable IPA is
+  not confused with a Metro-dependent debug build.
+
 ## [0.1.16] - 2026-10-21
 
 ### Changed

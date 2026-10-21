@@ -62,7 +62,7 @@ extension as-is.
 - the `com.apple.developer.networking.networkextension` entitlement with
   `packet-tunnel-provider`;
 - a provisioning profile containing that entitlement;
-- a matching App Group and Keychain access group on both targets.
+- an explicit App ID and a matching provisioning profile for each target.
 
 Free Apple IDs cannot use Network Extensions. Sideloading tools can install an
 unsigned IPA, but the extension will be rejected by the system.
@@ -71,12 +71,11 @@ unsigned IPA, but the extension will be rejected by the system.
 
 1. Buy the Apple Developer Program.
 2. Create App IDs for `net.ragenet.vpn` and `net.ragenet.vpn.tunnel`.
-3. Enable Network Extensions → Packet Tunnel and App Groups on both.
-4. Create the App Group `group.net.ragenet.vpn`.
-5. Add `ios/RageNet.entitlements` and `ios/tunnel/tunnel.entitlements`.
-6. Put the certificate and provisioning profiles in GitHub Actions secrets.
-7. Switch CI from `CODE_SIGNING_ALLOWED=NO` to the signed archive path.
-8. Test on a physical device; the simulator cannot run a Packet Tunnel.
+3. Enable Network Extensions → Packet Tunnel on both.
+4. Add `ios/RageNet.entitlements` and `ios/tunnel/tunnel.entitlements`.
+5. Put the certificate and provisioning profiles in GitHub Actions secrets.
+6. Switch CI from `CODE_SIGNING_ALLOWED=NO` to the signed archive path.
+7. Test on a physical device; the simulator cannot run a Packet Tunnel.
 
 ## macOS
 

@@ -50,15 +50,14 @@ installed as-is.
 > `main.jsbundle` and expects a running Metro packager; installing it without
 > Metro produces `No script URL provided`. The Release IPA contains
 > `Payload/RageNet.app/main.jsbundle`. Sign it with your `.p12` + `.mobileprovision` in a signing tool
-that also signs embedded app extensions (Sideloadly, ESign/GBox with extension
-support, or Xcode).
+> that also signs embedded app extensions (Sideloadly, ESign/GBox with extension
+> support, or Xcode).
 
 **Important:** the VPN will not work unless both the app and the extension are
 signed with paid Apple Developer Program profiles containing:
 
 - `com.apple.developer.networking.networkextension` =
   `packet-tunnel-provider`;
-- `com.apple.security.application-groups` = `group.net.ragenet.vpn`;
 - explicit App IDs `net.ragenet.vpn` and `net.ragenet.vpn.tunnel`.
 
 A free Apple ID cannot enable Network Extensions. A single wildcard profile
@@ -75,13 +74,14 @@ GitHub → Actions → **Build Android** or **Build iOS** → **Run workflow**.
 Artifacts appear at the bottom of the run:
 
 - `ragenet-android-apk`
-- `ragenet-ios-ipa`
+- `ragenet-ios-ipa-release` (installable; use this for signing)
+- `ragenet-ios-ipa-debug` (requires Metro)
 
 ### Tag release
 
 ```bash
-git tag app-v0.1.16
-git push origin app-v0.1.16
+git tag app-v0.1.17
+git push origin app-v0.1.17
 ```
 
 Both workflows also run on `app-v*` tags. Artifacts are available on each run

@@ -18,18 +18,14 @@ extension with its own bundle identifier and its own provisioning profile.
   - `net.ragenet.vpn` — the main app;
   - `net.ragenet.vpn.tunnel` — the Packet Tunnel extension.
 - Both App IDs must have **Network Extensions** enabled.
-- App Group `group.net.ragenet.vpn` attached to both App IDs.
 - Two provisioning profiles (development or ad hoc), one per App ID. A single
   wildcard profile will not work for a Network Extension.
 - Your `.p12` signing certificate.
 
-The bundle identifiers and App Group are defined in:
+The bundle identifiers are defined in:
 
 - `apps/mobile/app.json` (`ios.bundleIdentifier`, `ios.entitlements`);
 - `apps/mobile/targets/tunnel/expo-target.config.js`.
-
-If your Apple account uses a different App Group, change both files and rebuild
-the IPA. The extension and the app must use the same group.
 
 ## Check a provisioning profile
 
@@ -45,7 +41,6 @@ The main profile must contain:
 
 ```text
 com.apple.developer.networking.networkextension = [packet-tunnel-provider]
-com.apple.security.application-groups = [group.net.ragenet.vpn]
 ```
 
 The extension profile must contain the same Network Extension entitlement and

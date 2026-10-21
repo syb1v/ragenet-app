@@ -3,7 +3,7 @@
     "name": "RageNet",
     "slug": "ragenet",
     "scheme": "ragenet",
-    "version": "0.1.16",
+    "version": "0.1.17",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -18,7 +18,6 @@
         "NSLocalNetworkUsageDescription": "RageNet использует локальную сеть для диагностики подключения."
       },
       "entitlements": {
-        "com.apple.security.application-groups": ["group.net.ragenet.vpn"],
         "com.apple.developer.networking.networkextension": ["packet-tunnel-provider"]
       }
     },
