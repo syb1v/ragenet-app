@@ -29,5 +29,5 @@ android {
 dependencies {
   implementation project(':expo-modules-core')
   implementation 'androidx.core:core-ktx:1.13.1'
-  implementation files('libs/libXray.aar')
+  compileOnly files('libs/libXray-classes.jar')
 }

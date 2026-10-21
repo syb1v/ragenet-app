@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.19] - 2026-10-21
+
+### Fixed
+
+- Android library modules cannot contain a direct local `.aar`. The VPN module
+  now compiles against `libXray-classes.jar` (`compileOnly`), while the app
+  links the full `libXray.aar` through a small Expo config plugin.
+
 ## [0.1.18] - 2026-10-21
 
 ### Fixed

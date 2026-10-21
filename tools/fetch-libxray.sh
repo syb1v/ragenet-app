@@ -23,6 +23,7 @@ unzip -p "$TMP/libXray-full.aar" "jni/$ABI/libgojni.so" > "$TMP/aar/jni/$ABI/lib
   cd "$TMP/aar"
   zip -qr "$DEST/libXray.aar" .
 )
+unzip -p "$DEST/libXray.aar" classes.jar > "$DEST/libXray-classes.jar"
 
 echo "libXray.aar ($ABI) -> $DEST/libXray.aar"
 du -h "$DEST/libXray.aar"
