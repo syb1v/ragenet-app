@@ -1,7 +1,7 @@
 # RageNet app — roadmap
 
-**Статус:** Phase 0 завершён, Phase 1 не начат
-**Версия:** 0.1.12
+**Статус:** Phase 0 завершён, Phase 1–2 в работе
+**Версия:** 0.1.13
 **Дата обновления:** 21 октября 2026
 **Репозиторий:** `ragenet-app` (клиент; backend/cabinet — в основном репозитории RageNet VPN)
 
@@ -22,21 +22,24 @@
 - компактное меню подписки: QR, share, copy, delete;
 - парсер подписок Remnawave, HWID, сборщик Xray-конфига, санитайзер full configs;
 - Tauri 2 каркас, иконки, дизайн-токены, CI-скелет, тесты;
-- web-превью и JS-бандлы Android/iOS.
+- web-превью и JS-бандлы Android/iOS;
+- Android `VpnService`, libXray AAR, TUN fd и foreground service;
+- iOS Packet Tunnel Extension, `NETunnelProviderManager` и LibXray XCFramework;
+- unsigned IPA с extension внутри (подписывается сертификатом пользователя).
 
-Не готово:
+Не готово / в работе:
 
-- реальный `VpnService` и туннель;
-- Packet Tunnel Extension;
+- подтверждённый runtime-тест Android-туннеля на устройстве;
+- статистика трафика из Xray и ping через core API;
 - desktop Xray sidecar/helper;
 - подписанные релизные артефакты;
-- staging-проверка протоколов.
+- staging-проверка протоколов и iOS-подпись двумя профилями.
 
 ## Фазы
 
 ### Phase 0 — Foundation
 
-**Статус:** done · **Версия:** 0.1.12
+**Статус:** done · **Версия:** 0.1.13
 
 - Монорепо, дизайн-система, экраны.
 - Парсер подписок и сборщик Xray-конфига.

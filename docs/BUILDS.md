@@ -41,15 +41,25 @@ What it does:
 4. Packages `Payload/RageNet.app` into
    `RageNet-<version>-ios-unsigned.ipa`.
 
-The workflow does **not** need an Apple Developer account. The IPA has no
-signature and cannot be installed as-is. Use Sideloadly/AltStore/your own
-signing service, or sign it with a certificate you control.
+The workflow does **not** need an Apple Developer account to produce the
+unsigned IPA. The IPA contains the main app and the Packet Tunnel extension
+(`Payload/RageNet.app/PlugIns/tunnel.appex`) but has no signature and cannot be
+installed as-is. Sign it with your `.p12` + `.mobileprovision` in a signing tool
+that also signs embedded app extensions (Sideloadly, ESign/GBox with extension
+support, or Xcode).
 
-**Important:** the VPN/Network Extension will not work until the app is signed
-with a paid Apple Developer Program profile containing the
-`packet-tunnel-provider` entitlement. A free Apple ID cannot enable Network
-Extensions. The current build is a UI preview; the Packet Tunnel target is added
-in Phase 2.
+**Important:** the VPN will not work unless both the app and the extension are
+signed with paid Apple Developer Program profiles containing:
+
+- `com.apple.developer.networking.networkextension` =
+  `packet-tunnel-provider`;
+- `com.apple.security.application-groups` = `group.net.ragenet.vpn`;
+- explicit App IDs `net.ragenet.vpn` and `net.ragenet.vpn.tunnel`.
+
+A free Apple ID cannot enable Network Extensions. A single wildcard profile
+cannot sign a Network Extension. If your signing tool only applies one profile,
+the embedded `tunnel.appex` will remain unsigned and iOS will refuse to start
+the tunnel.
 
 ## Run a build
 
@@ -65,8 +75,8 @@ Artifacts appear at the bottom of the run:
 ### Tag release
 
 ```bash
-git tag app-v0.1.12
-git push origin app-v0.1.12
+git tag app-v0.1.13
+git push origin app-v0.1.13
 ```
 
 Both workflows also run on `app-v*` tags. Artifacts are available on each run

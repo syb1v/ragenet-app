@@ -96,7 +96,10 @@ public final class RageNetVpnModule: Module {
   }
 
   private func emitStatus() {
-    sendEvent("onVpnStatus", statusPayload())
+    let payload = statusPayload()
+    DispatchQueue.main.async { [weak self] in
+      self?.sendEvent("onVpnStatus", payload)
+    }
   }
 
   private func loadManager() async throws -> NETunnelProviderManager {

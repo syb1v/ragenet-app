@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.13] - 2026-10-21
+
+### Fixed
+
+- iOS status events are delivered on the main queue.
+- Link `libresolv.9` with the iOS libXray pod, matching the upstream Packet
+  Tunnel integration.
+- Documentation now describes signing both the app and the embedded
+  `tunnel.appex`; a single profile is not enough for Network Extension.
+
 ## [0.1.12] - 2026-10-21
 
 ### Added
