@@ -42,12 +42,12 @@ profile with Network Extensions.
 Repository → Settings → Secrets and variables → Actions → New repository
 secret:
 
-| Secret | Value |
-| --- | --- |
-| `IOS_CERTIFICATE_P12` | base64 of the `.p12` |
-| `IOS_CERTIFICATE_PASSWORD` | `.p12` password |
-| `IOS_MAIN_PROVISION` | base64 of the main `.mobileprovision` |
-| `IOS_TUNNEL_PROVISION` | base64 of the tunnel `.mobileprovision` |
+| Secret                     | Value                                   |
+| -------------------------- | --------------------------------------- |
+| `IOS_CERTIFICATE_P12`      | base64 of the `.p12`                    |
+| `IOS_CERTIFICATE_PASSWORD` | `.p12` password                         |
+| `IOS_MAIN_PROVISION`       | base64 of the main `.mobileprovision`   |
+| `IOS_TUNNEL_PROVISION`     | base64 of the tunnel `.mobileprovision` |
 
 Base64 on macOS:
 

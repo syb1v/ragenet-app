@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `Sign iOS IPA` workflow that signs the app, `tunnel.appex` and nested
   frameworks with two provisioning profiles supplied through GitHub Secrets.
 
-
 ## [0.1.19] - 2026-10-21
 
 ### Fixed
