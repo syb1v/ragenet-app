@@ -18,7 +18,7 @@ from `reactNativeArchitectures` (`armeabi-v7a`, `arm64-v8a`, `x86`, `x86_64`).
 Install for testing:
 
 ```bash
-adb install -r RageNet-0.1.4-android-universal.apk
+adb install -r RageNet-0.1.5-android-universal.apk
 ```
 
 For a production/self-signed release, add a keystore to GitHub Secrets and a
@@ -60,8 +60,8 @@ Artifacts appear at the bottom of the run:
 ### Tag release
 
 ```bash
-git tag app-v0.1.4
-git push origin app-v0.1.4
+git tag app-v0.1.5
+git push origin app-v0.1.5
 ```
 
 On tags, the `release` job also publishes a GitHub Release with the APK, IPA and

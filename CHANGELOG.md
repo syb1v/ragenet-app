@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-10-21
+
+### Fixed
+
+- Declared `babel-preset-expo` explicitly; iOS release bundling failed with
+  `Cannot find module 'babel-preset-expo'` inside `Bundle React Native code`.
+
 ## [0.1.4] - 2026-10-21
 
 ### Fixed
