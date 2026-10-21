@@ -71,15 +71,25 @@ function directRules(mode: RoutingMode): JsonObject[] {
       type: 'field',
       outboundTag: 'direct',
       domain: ['localhost', 'domain:local'],
-      ip: ['geoip:private'],
+      // Keep the generated config independent from geoip.dat/geosite.dat.
+      // Mobile clients cannot rely on those assets being present in the app bundle.
+      ip: [
+        '127.0.0.0/8',
+        '10.0.0.0/8',
+        '172.16.0.0/12',
+        '192.168.0.0/16',
+        '169.254.0.0/16',
+        '::1/128',
+        'fc00::/7',
+        'fe80::/10',
+      ],
     },
   ];
   if (mode === 'bypass-ru') {
     rules.push({
       type: 'field',
       outboundTag: 'direct',
-      domain: ['geosite:category-ru', 'domain:ru'],
-      ip: ['geoip:ru'],
+      domain: ['domain:ru'],
     });
   }
   return rules;

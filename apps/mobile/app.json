@@ -3,7 +3,7 @@
     "name": "RageNet",
     "slug": "ragenet",
     "scheme": "ragenet",
-    "version": "0.1.11",
+    "version": "0.1.12",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -16,6 +16,10 @@
         "CFBundleDisplayName": "RageNet VPN",
         "UIUserInterfaceStyle": "Dark",
         "NSLocalNetworkUsageDescription": "RageNet использует локальную сеть для диагностики подключения."
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.net.ragenet.vpn"],
+        "com.apple.developer.networking.networkextension": ["packet-tunnel-provider"]
       }
     },
     "android": {
@@ -50,9 +54,13 @@
             "minSdkVersion": 26,
             "compileSdkVersion": 36,
             "targetSdkVersion": 36
+          },
+          "ios": {
+            "deploymentTarget": "16.4"
           }
         }
-      ]
+      ],
+      "@bacons/apple-targets"
     ]
   }
 }

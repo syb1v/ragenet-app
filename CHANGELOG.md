@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.12] - 2026-10-21
+
+### Added
+
+- iOS Packet Tunnel Extension target (`tunnel`) generated with
+  `@bacons/apple-targets`, including Network Extension and App Group entitlements.
+- iOS `NETunnelProviderManager` bridge in the local Expo module, utun file
+  descriptor discovery and `xray.tun.fd` handoff to libXray.
+- `LibXray.xcframework` fetch script, local CocoaPods podspec and iOS CI cache.
+  The unsigned IPA now contains the extension and can be signed by the user.
+
+### Changed
+
+- Generated routing rules no longer depend on `geoip.dat` / `geosite.dat`:
+  private CIDRs are explicit and `bypass-ru` uses `domain:ru`. This makes the
+  mobile runtime work without bundled geo assets.
+
+### Notes
+
+- Real iOS VPN still requires a paid Apple Developer profile with the
+  `packet-tunnel-provider` entitlement and `group.net.ragenet.vpn` App Group.
+  An unsigned IPA alone cannot start the tunnel.
+
 ## [0.1.11] - 2026-10-21
 
 ### Fixed
