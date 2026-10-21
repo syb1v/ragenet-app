@@ -1,4 +1,4 @@
-import { colors, fonts, radii } from '@ragenet/design';
+import { colors, fonts } from '@ragenet/design';
 import { flagForCountryCode } from '@ragenet/core';
 import {
   ArrowUpDown,
@@ -25,7 +25,7 @@ import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { IconButton } from '../components/IconButton';
 import { Screen } from '../components/Screen';
-import { ParticleSphere } from '../components/particles/ParticleSphere';
+import { SignalAperture } from '../components/connection/SignalAperture';
 import { errorHaptic, successHaptic } from '../lib/haptics';
 import { formatBytes, formatDate, formatUpdated, stripFlag } from '../lib/format';
 import { DEMO_SUPPORT_URL } from '../lib/demo';
@@ -112,28 +112,36 @@ export function HomeScreen() {
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        <View style={styles.sphereArea}>
-          <ParticleSphere state={vpnStatus.state} onToggle={toggleConnection} />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={isConnected ? 'Отключить VPN' : 'Подключить VPN'}
-            onPress={toggleConnection}
-            hitSlop={10}
+        <View style={styles.coreArea}>
+          <SignalAperture state={vpnStatus.state} onToggle={toggleConnection} />
+          <View
+            style={[
+              styles.statusPill,
+              isConnected && styles.statusPillConnected,
+              vpnStatus.state === 'connecting' && styles.statusPillConnecting,
+              vpnStatus.state === 'error' && styles.statusPillError,
+            ]}
           >
+            <View
+              style={[
+                styles.statusDot,
+                isConnected && styles.statusDotConnected,
+                vpnStatus.state === 'connecting' && styles.statusDotConnecting,
+                vpnStatus.state === 'error' && styles.statusDotError,
+              ]}
+            />
             <Text
               style={[
-                styles.status,
-                isConnected && styles.statusConnected,
-                vpnStatus.state === 'connecting' && styles.statusConnecting,
+                styles.statusText,
+                isConnected && styles.statusTextConnected,
+                vpnStatus.state === 'connecting' && styles.statusTextConnecting,
               ]}
             >
               {STATUS_LABEL[vpnStatus.state] ?? 'Отключено'}
             </Text>
-          </Pressable>
+          </View>
           <Text style={styles.hint}>
-            {isConnected
-              ? 'Нажмите или удерживайте, чтобы отключиться'
-              : 'Нажмите или удерживайте, чтобы подключиться'}
+            {isConnected ? 'Удерживайте, чтобы отключиться' : 'Удерживайте, чтобы подключиться'}
           </Text>
         </View>
 
@@ -173,25 +181,27 @@ export function HomeScreen() {
             </View>
           </View>
 
-          <View style={styles.statsRow}>
-            <View style={styles.statCard}>
-              <View style={styles.statLabelRow}>
-                <ArrowUpDown color={colors.text2} size={15} strokeWidth={1.8} />
-                <Text style={styles.statLabel}>Трафик</Text>
+          <View style={styles.dataStrip}>
+            <View style={styles.dataCell}>
+              <View style={styles.dataLabelRow}>
+                <ArrowUpDown color={colors.text2} size={14} strokeWidth={1.8} />
+                <Text style={styles.dataLabel}>Трафик</Text>
               </View>
-              <Text style={styles.statValue}>
+              <Text style={styles.dataValue}>
                 {subscription.meta.hideTraffic ? '∞' : formatBytes(used)}
               </Text>
               {!subscription.meta.hideTraffic && total ? (
-                <Text style={styles.statSub}>из {formatBytes(total)}</Text>
+                <Text style={styles.dataSub}>из {formatBytes(total)}</Text>
               ) : null}
             </View>
-            <View style={styles.statCard}>
-              <View style={styles.statLabelRow}>
-                <Calendar color={colors.text2} size={15} strokeWidth={1.8} />
-                <Text style={styles.statLabel}>Действует до</Text>
+            <View style={styles.dataDivider} />
+            <View style={styles.dataCell}>
+              <View style={styles.dataLabelRow}>
+                <Calendar color={colors.text2} size={14} strokeWidth={1.8} />
+                <Text style={styles.dataLabel}>Действует до</Text>
               </View>
-              <Text style={styles.statValue}>{formatDate(subscription.meta.expiresAt)}</Text>
+              <Text style={styles.dataValue}>{formatDate(subscription.meta.expiresAt)}</Text>
+              <Text style={styles.dataSub}>активна</Text>
             </View>
           </View>
 
@@ -242,24 +252,62 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: 10,
   },
-  sphereArea: {
+  coreArea: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 318,
+    minHeight: 330,
     paddingBottom: 4,
-    paddingTop: 0,
+    paddingTop: 2,
   },
-  status: {
+  statusPill: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(21, 30, 47, 0.6)',
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 7,
+    marginTop: 1,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+  },
+  statusPillConnected: {
+    backgroundColor: colors.greenSoft,
+    borderColor: 'rgba(52, 211, 153, 0.3)',
+  },
+  statusPillConnecting: {
+    backgroundColor: colors.brandSoft,
+    borderColor: colors.brandBorder,
+  },
+  statusPillError: {
+    backgroundColor: colors.dangerSoft,
+    borderColor: 'rgba(243, 101, 110, 0.3)',
+  },
+  statusDot: {
+    backgroundColor: colors.text2,
+    borderRadius: 99,
+    height: 5,
+    width: 5,
+  },
+  statusDotConnected: {
+    backgroundColor: colors.green,
+  },
+  statusDotConnecting: {
+    backgroundColor: colors.brandStrong,
+  },
+  statusDotError: {
+    backgroundColor: colors.danger,
+  },
+  statusText: {
     color: colors.text2,
     fontFamily: fonts.semibold,
-    fontSize: 16,
-    lineHeight: 22,
-    marginTop: 6,
+    fontSize: 11,
+    lineHeight: 15,
   },
-  statusConnected: {
+  statusTextConnected: {
     color: colors.green,
   },
-  statusConnecting: {
+  statusTextConnecting: {
     color: colors.brandStrong,
   },
   hint: {
@@ -300,54 +348,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  statCard: {
-    backgroundColor: colors.surface,
+  dataStrip: {
+    backgroundColor: 'rgba(21, 30, 47, 0.54)',
     borderColor: colors.line,
-    borderRadius: 16,
+    borderRadius: 17,
     borderWidth: 1,
-    flex: 1,
-    minHeight: 72,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    flexDirection: 'row',
+    minHeight: 66,
   },
-  statLabelRow: {
+  dataCell: {
+    flex: 1,
+    justifyContent: 'center',
+    minWidth: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  dataLabelRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 6,
+    gap: 5,
   },
-  statLabel: {
+  dataLabel: {
     color: colors.text2,
     fontFamily: fonts.medium,
-    fontSize: 12,
+    fontSize: 10,
   },
-  statValue: {
+  dataValue: {
     color: colors.text,
-    fontFamily: fonts.bold,
-    fontSize: 15,
+    fontFamily: fonts.monoMedium,
+    fontSize: 12.5,
     letterSpacing: -0.2,
-    lineHeight: 19,
-    marginTop: 5,
+    lineHeight: 17,
+    marginTop: 3,
   },
-  statSub: {
+  dataSub: {
     color: colors.text3,
     fontFamily: fonts.regular,
-    fontSize: 11,
-    lineHeight: 14,
-    marginTop: 0,
+    fontSize: 9.5,
+    lineHeight: 13,
+    marginTop: 1,
+  },
+  dataDivider: {
+    backgroundColor: colors.line,
+    width: 1,
   },
   serverRow: {
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.line,
-    borderRadius: 16,
+    borderRadius: 17,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 12,
-    minHeight: 58,
+    minHeight: 56,
     paddingHorizontal: 12,
   },
   pressed: {
@@ -375,9 +428,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   supportButton: {
-    height: 50,
+    borderRadius: 15,
+    height: 46,
     marginTop: 0,
-    borderRadius: radii.md,
   },
   botLink: {
     alignItems: 'center',

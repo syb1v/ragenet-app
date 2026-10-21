@@ -34,9 +34,9 @@ await page.getByText('Посмотреть демо').click();
 await page.waitForTimeout(1200);
 await page.screenshot({ path: path.join(outputDir, 'home.png') });
 
-const sphere = page.locator('canvas').first();
+const sphere = page.getByTestId('signal-aperture');
 const box = await sphere.boundingBox();
-if (!box) throw new Error('Particle canvas not found');
+if (!box) throw new Error('Signal aperture not found');
 
 // Hold while moving inside the sphere: charge and connect.
 await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -121,8 +121,8 @@ await page.screenshot({ path: path.join(outputDir, 'after-delete.png') });
 // Reload the demo and verify press-and-hold from the disconnected state.
 await page.getByText('Посмотреть демо').click();
 await page.waitForTimeout(1000);
-const holdBox = await page.locator('canvas').first().boundingBox();
-if (!holdBox) throw new Error('Particle canvas not found after demo reload');
+const holdBox = await page.getByTestId('signal-aperture').boundingBox();
+if (!holdBox) throw new Error('Signal aperture not found after demo reload');
 await page.mouse.move(holdBox.x + holdBox.width / 2, holdBox.y + holdBox.height / 2);
 await page.mouse.down();
 await page.waitForTimeout(900);

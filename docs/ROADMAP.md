@@ -18,7 +18,7 @@
 Готово:
 
 - UI-прототип: онбординг, главный экран, настройки, логи;
-- шар из 2 200 частиц: тап, удержание, drag, прогрессивная тряска, haptics, реакция на состояние;
+- Signal Aperture: tap/hold, заряд кольца, мягкие haptics и реакция на состояние;
 - компактное меню подписки: QR, share, copy, delete;
 - парсер подписок Remnawave, HWID, сборщик Xray-конфига, санитайзер full configs;
 - Tauri 2 каркас, иконки, дизайн-токены, CI-скелет, тесты;
@@ -43,7 +43,7 @@
 
 - Монорепо, дизайн-система, экраны.
 - Парсер подписок и сборщик Xray-конфига.
-- Интерактивный шар.
+- Интерактивная Signal Aperture.
 - Tauri shell и native-контракты.
 - CI: typecheck, tests, prettier, web build.
 - Документация: architecture, signing, phase 0, roadmap, versioning.

@@ -18,7 +18,6 @@
 apps/mobile  ─┐
 apps/desktop ─┼─ packages/ui ── packages/design
               ├─ packages/core ── subscription / Xray config / HWID
-              └─ packages/particles ── simulation + renderers
 
 packages/ui
   └─ packages/vpn contract (native bridge)

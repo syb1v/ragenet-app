@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.21] - 2026-10-21
+
+### Changed
+
+- Replaced the particle sphere with **Signal Aperture**: SVG rings, hold
+  progress, state-driven motion and a compact power core.
+- Reworked the home hierarchy: status pill, compact traffic/expiry strip,
+  quieter subscription actions and route row.
+- Haptics now use soft selection ticks, a restrained hold ramp and no heavy
+  impact; drag feedback is gentler.
+
+### Removed
+
+- The unused particle simulation/renderers and the Skia native dependency.
+
 ## [0.1.20] - 2026-10-21
 
 ### Added

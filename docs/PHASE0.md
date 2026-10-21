@@ -11,10 +11,10 @@ release rules.
 - [x] AGPL-3.0 license and branding assets.
 - [x] Design tokens matching the cabinet (`rage-ds.css`).
 - [x] Onboarding, home, settings, logs, add-key sheet, server sheet, reset sheet.
-- [x] Interactive 2 200-particle sphere with tap-or-hold connect (web Canvas2D + native Skia renderer).
-- [x] Smoothed particle physics and color transitions (no impulse jumps).
+- [x] Signal Aperture connection surface with tap-or-hold connect (SVG + native animation).
+- [x] Soft selection-tick haptics, progressive hold feedback and state transitions.
 - [x] Progressive haptic ramp for press-and-hold.
-- [x] Speed-sensitive haptic ticks and particle shiver while dragging.
+- [x] Gentle drag feedback and full press/release lifecycle.
 - [x] Compact anchored subscription menu (QR, share, copy, delete).
 - [x] Tap / stationary hold actions; drag is play-only.
 - [x] Demo mode (`?demo=1` on web, `demo` as a key).
@@ -23,7 +23,7 @@ release rules.
 - [x] Xray config builder with TUN inbound, stats, routing presets.
 - [x] Full-config sanitizer (loopback-only inbounds).
 - [x] HWID/device info helper.
-- [x] Unit tests for parser, config and particle simulation.
+- [x] Unit tests for parser and Xray config.
 - [x] Branded mobile/desktop icons generated from the logo.
 - [x] Tauri 2 desktop shell scaffolding.
 - [x] Architecture, native contracts, signing notes.

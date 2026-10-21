@@ -16,8 +16,6 @@
     "@expo-google-fonts/manrope": "0.4.2",
     "@ragenet/core": "workspace:*",
     "@ragenet/design": "workspace:*",
-    "@ragenet/particles": "workspace:*",
-    "@shopify/react-native-skia": "2.14.0",
     "expo-clipboard": "~58.0.3",
     "expo-constants": "~58.0.12",
     "expo-font": "~58.0.9",
