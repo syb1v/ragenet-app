@@ -7,7 +7,7 @@ Pod::Spec.new do |s|
   s.homepage = 'https://github.com/syb1v/ragenet-app'
   s.platforms = { :ios => '16.4' }
   s.source = { :git => 'https://github.com/syb1v/ragenet-app.git', :tag => s.version.to_s }
-  s.source_files = 'ios/**/*.{h,m,mm,swift}'
+  s.source_files = '**/*.{h,m,mm,swift}'
   s.swift_version = '5.9'
   s.dependency 'ExpoModulesCore'
   s.frameworks = 'NetworkExtension'

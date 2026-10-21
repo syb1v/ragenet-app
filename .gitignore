@@ -35,4 +35,4 @@ apps/desktop/src-tauri/gen/
 apps/mobile/modules/ragenet-vpn/android/libs/*.aar
 
 # Apple Xray xcframework is fetched by CI / tools/fetch-libxray-ios.sh
-apps/mobile/modules/libxray/LibXray.xcframework/
+apps/mobile/vendor/libxray/LibXray.xcframework/

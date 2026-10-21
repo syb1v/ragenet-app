@@ -51,12 +51,12 @@ jobs:
       - name: Restore LibXray xcframework
         uses: actions/cache@v4
         with:
-          path: apps/mobile/modules/libxray/LibXray.xcframework
-          key: libxray-ios-${{ hashFiles('apps/mobile/modules/libxray/LibXray.podspec', 'tools/fetch-libxray-ios.sh') }}
+          path: apps/mobile/vendor/libxray/LibXray.xcframework
+          key: libxray-ios-${{ hashFiles('apps/mobile/vendor/libxray/LibXray.podspec', 'tools/fetch-libxray-ios.sh') }}
 
       - name: Fetch LibXray xcframework
         run: |
-          if [ ! -d apps/mobile/modules/libxray/LibXray.xcframework ]; then
+          if [ ! -d apps/mobile/vendor/libxray/LibXray.xcframework ]; then
             tools/fetch-libxray-ios.sh
           fi
           df -h

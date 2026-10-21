@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Expo iOS autolinking only scans podspecs inside top-level package
+  directories. `RageNetVpn.podspec` now lives in `ios/`, and the LibXray pod
+  moved to `vendor/libxray` to avoid a duplicate `LibXray` dependency.
+
 - Expo SDK 58 Android modules require `compileSdk 37`; the app previously used
   36 and failed `checkDebugAarMetadata`. CI now installs `platforms;android-37`.
 

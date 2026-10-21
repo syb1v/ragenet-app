@@ -1,5 +1,5 @@
 use_frameworks! :linkage => :static
 
 pod 'LibXray',
-    :path => File.expand_path('../../modules/libxray', __dir__),
+    :path => File.expand_path('../../vendor/libxray', __dir__),
     :modular_headers => true
