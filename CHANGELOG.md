@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-10-21
+
+### Fixed
+
+- Removed the CI step that rewrote `android.ndkVersion`; the runner already
+  provides the NDK and Gradle resolves it correctly.
+
 ## [0.1.3] - 2026-10-21
 
 ### Fixed

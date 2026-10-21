@@ -76,26 +76,6 @@ jobs:
       - name: Generate Android project
         run: pnpm --filter @ragenet/mobile exec expo prebuild --platform android --no-install
 
-      - name: Point Gradle at the installed NDK
-        working-directory: apps/mobile/android
-        run: |
-          NDK_DIR="${ANDROID_NDK_HOME:-}"
-          if [ -z "$NDK_DIR" ] || [ ! -d "$NDK_DIR" ]; then
-            NDK_DIR=$(find "$ANDROID_HOME/ndk" -maxdepth 1 -mindepth 1 -type d | sort -V | tail -n 1)
-          fi
-          if [ -z "$NDK_DIR" ]; then
-            echo "No Android NDK found"
-            exit 1
-          fi
-          NDK_VERSION=$(basename "$NDK_DIR")
-          echo "Using NDK $NDK_VERSION from $NDK_DIR"
-          if grep -q '^android.ndkVersion=' gradle.properties; then
-            sed -i "s/^android.ndkVersion=.*/android.ndkVersion=$NDK_VERSION/" gradle.properties
-          else
-            echo "android.ndkVersion=$NDK_VERSION" >> gradle.properties
-          fi
-          grep '^android.ndkVersion=' gradle.properties
-
       - name: Build release APK
         working-directory: apps/mobile/android
         run: |
