@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-21
+
+### Fixed
+
+- Android CI resolves the installed NDK from `ANDROID_HOME/ndk` instead of an
+  undefined `ANDROID_NDK_HOME`.
+- iOS CI uses the macOS 26 runner and latest stable Xcode to satisfy Swift 6.2
+  package requirements.
+
 ## [0.1.2] - 2026-10-21
 
 ### Fixed
