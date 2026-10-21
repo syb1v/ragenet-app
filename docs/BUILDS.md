@@ -59,7 +59,7 @@ signed with paid Apple Developer Program profiles containing:
 A free Apple ID cannot enable Network Extensions. A single wildcard profile
 cannot sign a Network Extension. If your signing tool only applies one profile,
 the embedded `tunnel.appex` will remain unsigned and iOS will refuse to start
-the tunnel.
+the tunnel. See [`IOS_SIGNING.md`](IOS_SIGNING.md) for the full checklist.
 
 ## Run a build
 
