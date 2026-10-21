@@ -13,10 +13,12 @@ interface SettingsModalProps {
  */
 export function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [mounted, setMounted] = useState(visible);
+  const mountedRef = useRef(visible);
   const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
 
   useEffect(() => {
     if (visible) {
+      mountedRef.current = true;
       setMounted(true);
       progress.setValue(0);
       Animated.spring(progress, {
@@ -29,13 +31,16 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
       return;
     }
 
-    if (!mounted) return;
+    if (!mountedRef.current) return;
     Animated.timing(progress, {
       toValue: 0,
       duration: 220,
       useNativeDriver: true,
-    }).start(() => setMounted(false));
-  }, [mounted, progress, visible]);
+    }).start(() => {
+      mountedRef.current = false;
+      setMounted(false);
+    });
+  }, [progress, visible]);
 
   if (Platform.OS === 'ios') {
     return (

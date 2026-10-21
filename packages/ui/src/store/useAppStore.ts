@@ -4,12 +4,15 @@ import {
   generateHwid,
   parseSubscription,
   subscriptionFromParsed,
+  buildXrayConfig,
   type AppSettings,
   type ParsedSubscription,
   type ServerNode,
   type Subscription,
   type VpnStatus,
 } from '@ragenet/core';
+import { createVpnBridge, type VpnBridge } from '@ragenet/vpn';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { createDemoSubscription } from '../lib/demo';
@@ -52,7 +55,8 @@ interface AppState {
   pingServers: () => Promise<void>;
   selectServer: (id: string) => void;
   deleteSubscription: () => void;
-  toggleConnection: () => void;
+  initVpn: () => void;
+  toggleConnection: () => Promise<void>;
   navigate: (screen: Screen) => void;
   openSheet: (sheet: Sheet, mode?: AddMode) => void;
   closeSheet: () => void;
@@ -102,25 +106,16 @@ export const DEVICE = {
   os: platformName(),
   osVersion: Platform.Version?.toString() ?? 'unknown',
   model: deviceModel(),
-  appVersion: '0.1.0',
+  appVersion: Constants.expoConfig?.version ?? '0.1.7',
 };
 
-let statsTimer: ReturnType<typeof setInterval> | null = null;
+let vpnBridge: VpnBridge | null = null;
+let vpnUnsubscribe: (() => void) | null = null;
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
-let connectTimer: ReturnType<typeof setTimeout> | null = null;
 
-function stopStatsTimer(): void {
-  if (statsTimer) {
-    clearInterval(statsTimer);
-    statsTimer = null;
-  }
-}
-
-function stopConnectTimer(): void {
-  if (connectTimer) {
-    clearTimeout(connectTimer);
-    connectTimer = null;
-  }
+function getVpnBridge(): VpnBridge {
+  if (!vpnBridge) vpnBridge = createVpnBridge();
+  return vpnBridge;
 }
 
 function initialLogs(): LogEntry[] {
@@ -129,7 +124,7 @@ function initialLogs(): LogEntry[] {
       id: 'boot',
       time: Date.now(),
       level: 'info',
-      message: 'RageNet 0.1.0 · Phase 0 preview',
+      message: 'RageNet 0.1.7 · native VPN bridge',
     },
   ];
 }
@@ -163,8 +158,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   loadDemo: () => {
     const subscription = createDemoSubscription();
-    stopStatsTimer();
-    stopConnectTimer();
+    if (get().vpnStatus.state !== 'disconnected') {
+      void getVpnBridge()
+        .stop()
+        .catch(() => undefined);
+    }
     set({
       subscription,
       servers: subscription.servers,
@@ -275,8 +273,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   deleteSubscription: () => {
-    stopStatsTimer();
-    stopConnectTimer();
+    void getVpnBridge()
+      .stop()
+      .catch(() => undefined);
     set({
       subscription: null,
       servers: [],
@@ -289,7 +288,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().addLog('Подписка удалена', 'warn');
   },
 
-  toggleConnection: () => {
+  initVpn: () => {
+    if (vpnUnsubscribe) return;
+    const bridge = getVpnBridge();
+    vpnUnsubscribe = bridge.subscribe((status) => set({ vpnStatus: status }));
+    bridge
+      .getStatus()
+      .then((status) => set({ vpnStatus: status }))
+      .catch(() => undefined);
+  },
+
+  toggleConnection: async () => {
     const state = get().vpnStatus.state;
     if (!get().subscription) {
       get().showToast('Сначала добавьте ключ подписки');
@@ -304,53 +313,34 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
 
-    if (state === 'connected') {
-      stopStatsTimer();
-      set({ vpnStatus: { ...get().vpnStatus, state: 'disconnecting' } });
-      get().addLog('Отключение…');
-      connectTimer = setTimeout(() => {
-        set({ vpnStatus: { state: 'disconnected' } });
-        get().addLog('VPN отключён');
-      }, 520);
-      return;
-    }
+    const bridge = getVpnBridge();
+    try {
+      if (state === 'connected') {
+        get().addLog('Отключение…');
+        await bridge.stop();
+        return;
+      }
 
-    stopConnectTimer();
-    set({
-      vpnStatus: {
-        state: 'connecting',
-        since: Date.now(),
-      },
-    });
-    get().addLog(`Подключение · ${selected.name}`);
-
-    connectTimer = setTimeout(() => {
-      set({
-        vpnStatus: {
-          state: 'connected',
-          since: Date.now(),
-          stats: { uploadedBytes: 0, downloadedBytes: 0, uptimeSeconds: 0 },
-        },
+      const config = buildXrayConfig(get().servers, {
+        selectedServerId: selected.id,
+        routingMode: get().settings.routingMode,
+        logLevel: get().settings.logLevel,
       });
-      get().addLog(`VPN подключён · ${selected.name}`);
-
-      stopStatsTimer();
-      statsTimer = setInterval(() => {
-        const current = get().vpnStatus;
-        if (current.state !== 'connected' || !current.stats) return;
-        set({
-          vpnStatus: {
-            ...current,
-            stats: {
-              uploadedBytes: current.stats.uploadedBytes + 1800 + Math.floor(Math.random() * 3200),
-              downloadedBytes:
-                current.stats.downloadedBytes + 26000 + Math.floor(Math.random() * 58000),
-              uptimeSeconds: current.stats.uptimeSeconds + 1,
-            },
-          },
-        });
-      }, 1000);
-    }, 1250);
+      const prepared = await bridge.prepare();
+      if (!prepared) {
+        get().showToast('Разрешите VPN в системном окне и нажмите ещё раз');
+        return;
+      }
+      get().addLog(`Подключение · ${selected.name}`);
+      await bridge.start({
+        config: JSON.stringify(config),
+        killSwitch: get().settings.killSwitch,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось переключить VPN';
+      get().addLog(message, 'error');
+      get().showToast(message);
+    }
   },
 
   navigate: (screen) => set({ screen, subscriptionMenuAnchor: null }),
@@ -363,8 +353,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateSettings: (patch) => set((state) => ({ settings: { ...state.settings, ...patch } })),
 
   resetApp: () => {
-    stopStatsTimer();
-    stopConnectTimer();
+    void getVpnBridge()
+      .stop()
+      .catch(() => undefined);
     set({
       subscription: null,
       servers: [],

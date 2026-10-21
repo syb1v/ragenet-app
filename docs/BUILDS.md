@@ -6,9 +6,9 @@ Workflow: `.github/workflows/build-android.yml`
 
 What it does:
 
-1. Installs Java 21, Android SDK/NDK r29, pnpm.
+1. Installs Java 21, Android SDK/NDK r29, pnpm and restores the libXray AAR cache.
 2. Runs `expo prebuild --platform android`.
-3. Builds `assembleRelease`.
+3. Builds a Debug APK for manual runs / Release APK for tags (arm64-v8a).
 4. Uploads `RageNet-<version>-android-arm64.apk` and `SHA256SUMS-android.txt`.
 
 The first workflow build is arm64-only to keep the runner stable and fast.
@@ -65,8 +65,8 @@ Artifacts appear at the bottom of the run:
 ### Tag release
 
 ```bash
-git tag app-v0.1.7
-git push origin app-v0.1.7
+git tag app-v0.1.8
+git push origin app-v0.1.8
 ```
 
 Both workflows also run on `app-v*` tags. Artifacts are available on each run

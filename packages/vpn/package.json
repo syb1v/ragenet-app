@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ragenet/core": "workspace:*"
+    "@ragenet/core": "workspace:*",
+    "expo-modules-core": "~58.0.23"
   }
 }

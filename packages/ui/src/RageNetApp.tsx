@@ -64,7 +64,12 @@ export function RageNetApp() {
   const loadDemo = useAppStore((state) => state.loadDemo);
   const navigate = useAppStore((state) => state.navigate);
   const addSubscription = useAppStore((state) => state.addSubscription);
+  const initVpn = useAppStore((state) => state.initVpn);
   const showToast = useAppStore((state) => state.showToast);
+
+  useEffect(() => {
+    initVpn();
+  }, [initVpn]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;

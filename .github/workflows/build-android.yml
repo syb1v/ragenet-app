@@ -73,6 +73,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Restore libXray AAR
+        uses: actions/cache@v4
+        with:
+          path: apps/mobile/modules/ragenet-vpn/android/libs/libXray.aar
+          key: libxray-${{ runner.os }}-${{ hashFiles('native/versions.json') }}
+
+      - name: Fetch libXray AAR
+        run: |
+          if [ ! -f apps/mobile/modules/ragenet-vpn/android/libs/libXray.aar ]; then
+            tools/fetch-libxray.sh
+          fi
+
       - name: Read app version
         run: |
           VERSION=$(node -p "require('./apps/mobile/app.json').expo.version")

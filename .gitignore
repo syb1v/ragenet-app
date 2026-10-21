@@ -30,3 +30,6 @@ apps/mobile/android/
 # Rust / Tauri
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
+
+# Native Xray binaries are fetched by CI / tools/fetch-libxray.sh
+apps/mobile/modules/ragenet-vpn/android/libs/*.aar

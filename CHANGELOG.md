@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-10-21
+
+### Added
+
+- Android native Xray bridge: local Expo module, `VpnService`, libXray AAR,
+  TUN fd handoff, `DialerController`, foreground notification and real connection lifecycle.
+- `@ragenet/vpn` Expo bridge with automatic mock fallback for web/Expo Go.
+- `tools/fetch-libxray.sh` and Android CI AAR cache.
+
+### Changed
+
+- Store now drives VPN state through the native bridge instead of local mock timers.
+- Android app requests `FOREGROUND_SERVICE_SPECIAL_USE` and builds with Gradle caching.
+
 ## [0.1.7] - 2026-10-21
 
 ### Added

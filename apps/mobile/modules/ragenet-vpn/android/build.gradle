@@ -1,0 +1,33 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+  namespace "net.ragenet.vpn"
+  compileSdkVersion 36
+
+  defaultConfig {
+    minSdkVersion 26
+    targetSdkVersion 36
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+
+  kotlinOptions {
+    jvmTarget = "17"
+  }
+
+  sourceSets {
+    main {
+      jniLibs.srcDirs += ["libs"]
+    }
+  }
+}
+
+dependencies {
+  implementation project(':expo-modules-core')
+  implementation 'androidx.core:core-ktx:1.13.1'
+  implementation files('libs/libXray.aar')
+}

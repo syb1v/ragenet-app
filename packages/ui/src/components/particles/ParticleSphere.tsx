@@ -30,7 +30,7 @@ const TAP_MAX_MS = 260;
 export function ParticleSphere({ state, onToggle, size: explicitSize }: ParticleSphereProps) {
   const { width } = useWindowDimensions();
   const size = explicitSize ?? Math.min(width * 0.7, 280);
-  const hitRadius = size * 0.43;
+  const hitRadius = size * 0.46;
   const simulation = useMemo(() => new ParticleSphereSimulation({ count: 1600 }), []);
 
   const pressing = useRef(false);
