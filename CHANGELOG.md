@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-10-21
+
+### Fixed
+
+- Android manifest merger failed because the app and the local VPN module shared
+  the `net.ragenet.vpn` namespace. The module now uses `net.ragenet.vpn.nativevpn`.
+
 ## [0.1.9] - 2026-10-21
 
 ### Fixed

@@ -2,7 +2,7 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
-  namespace "net.ragenet.vpn"
+  namespace "net.ragenet.vpn.nativevpn"
   compileSdkVersion 36
 
   defaultConfig {
