@@ -75,8 +75,8 @@ Artifacts appear at the bottom of the run:
 ### Tag release
 
 ```bash
-git tag app-v0.1.14
-git push origin app-v0.1.14
+git tag app-v0.1.15
+git push origin app-v0.1.15
 ```
 
 Both workflows also run on `app-v*` tags. Artifacts are available on each run

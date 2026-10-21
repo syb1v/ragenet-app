@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.15] - 2026-10-21
+
+### Fixed
+
+- Android uses the real SDK package name `platforms;android-37.0` and links it
+  as `android-37` for AGP 9.
+- The Packet Tunnel target no longer sets `use_frameworks!` independently of
+  the main app; CocoaPods rejected mismatched framework linkage.
+
 ## [0.1.14] - 2026-10-21
 
 ### Fixed
