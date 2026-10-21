@@ -3,7 +3,7 @@ apply plugin: 'kotlin-android'
 
 android {
   namespace "net.ragenet.vpn.nativevpn"
-  compileSdkVersion 36
+  compileSdkVersion 37
 
   defaultConfig {
     minSdkVersion 26

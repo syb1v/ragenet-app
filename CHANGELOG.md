@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.18] - 2026-10-21
+
+### Fixed
+
+- The local `ragenet-vpn` Android library compiled against SDK 36 while
+  `expo-modules-core` requires 37. It now uses `compileSdkVersion 37`.
+
 ## [0.1.17] - 2026-10-21
 
 ### Fixed
