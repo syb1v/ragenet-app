@@ -47,14 +47,15 @@ jobs:
           fi
           echo "Using unsigned IPA from run $RUN_ID"
           mkdir -p unsigned
-          gh run download "$RUN_ID" \
-            --repo "${{ github.repository }}" \
-            -n ragenet-ios-ipa-release \
-            -D unsigned || \
-          gh run download "$RUN_ID" \
-            --repo "${{ github.repository }}" \
-            -n ragenet-ios-ipa \
-            -D unsigned
+          for artifact in ragenet-ios-ipa-release ragenet-ios-ipa-Release ragenet-ios-ipa; do
+            if gh run download "$RUN_ID" \
+              --repo "${{ github.repository }}" \
+              -n "$artifact" \
+              -D unsigned; then
+              echo "Downloaded artifact: $artifact"
+              break
+            fi
+          done
           find unsigned -name '*.ipa' -maxdepth 2 -print
 
       - name: Import certificate and profiles
