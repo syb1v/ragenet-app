@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.16] - 2026-10-21
+
+### Changed
+
+- Android uses an SVG particle renderer. The Skia JSI/CMake build is excluded
+  from the Android autolinking graph, cutting a ~20 minute native compile that
+  repeatedly exhausted the hosted runner. iOS keeps the Skia renderer.
+
 ## [0.1.15] - 2026-10-21
 
 ### Fixed
