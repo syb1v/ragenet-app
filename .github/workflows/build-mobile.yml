@@ -1,0 +1,222 @@
+name: Build mobile
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - app-v*
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: '1'
+  EXPO_NO_TELEMETRY: '1'
+
+jobs:
+  android:
+    name: Android universal APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.14.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses >/dev/null || true
+
+      - name: Install Android platforms
+        run: |
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-35" \
+            "platforms;android-36" \
+            "build-tools;35.0.0" \
+            "build-tools;36.0.0"
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r29
+          add-to-path: true
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Read app version
+        run: |
+          VERSION=$(node -p "require('./apps/mobile/app.json').expo.version")
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Building RageNet $VERSION"
+
+      - name: Generate Android project
+        run: pnpm --filter @ragenet/mobile exec expo prebuild --platform android --no-install
+
+      - name: Point Gradle at the installed NDK
+        working-directory: apps/mobile/android
+        run: |
+          NDK_VERSION=$(basename "$ANDROID_NDK_HOME")
+          if grep -q '^android.ndkVersion=' gradle.properties; then
+            sed -i "s/^android.ndkVersion=.*/android.ndkVersion=$NDK_VERSION/" gradle.properties
+          else
+            echo "android.ndkVersion=$NDK_VERSION" >> gradle.properties
+          fi
+          grep '^android.ndkVersion=' gradle.properties
+
+      - name: Build release APK
+        working-directory: apps/mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Collect APK
+        run: |
+          mkdir -p artifacts
+          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk \
+            "artifacts/RageNet-${APP_VERSION}-android-universal.apk"
+          cd artifacts
+          sha256sum *.apk > SHA256SUMS-android.txt
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ragenet-android-apk
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 30
+
+  ios:
+    name: iOS unsigned IPA
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.14.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Read app version
+        run: |
+          VERSION=$(node -p "require('./apps/mobile/app.json').expo.version")
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Building RageNet $VERSION"
+
+      - name: Generate iOS project
+        run: pnpm --filter @ragenet/mobile exec expo prebuild --platform ios --no-install
+
+      - name: Install CocoaPods
+        working-directory: apps/mobile/ios
+        run: |
+          pod --version
+          pod install --repo-update
+
+      - name: Build unsigned archive
+        working-directory: apps/mobile/ios
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace RageNet.xcworkspace \
+            -scheme RageNet \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            ONLY_ACTIVE_ARCH=NO \
+            | tee xcodebuild.log
+
+      - name: Package IPA
+        run: |
+          mkdir -p artifacts/Payload
+          ditto \
+            apps/mobile/ios/build/Build/Products/Release-iphoneos/RageNet.app \
+            artifacts/Payload/RageNet.app
+          cd artifacts
+          zip -qry "RageNet-${APP_VERSION}-ios-unsigned.ipa" Payload
+          rm -rf Payload
+          sha256sum *.ipa > SHA256SUMS-ios.txt
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ragenet-ios-ipa
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/app-v')
+    needs: [android, ios]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ragenet-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          sha256sum *.apk *.ipa > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*.apk
+            artifacts/*.ipa
+            artifacts/SHA256SUMS.txt
+          generate_release_notes: true
+          body: |
+            RageNet ${{ github.ref_name }}
+
+            Android: universal APK (release build, signed with the debug keystore
+            for internal testing).
+            iOS: unsigned IPA. It can be installed with a signing tool, but the
+            VPN/Network Extension requires a paid Apple Developer Program
+            profile with the packet-tunnel-provider entitlement.

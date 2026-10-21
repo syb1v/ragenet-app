@@ -1,0 +1,32 @@
+node_modules/
+.pnpm-store/
+.expo/
+dist/
+dist-android/
+dist-ios/
+web-build/
+*.tsbuildinfo
+*.log
+.env
+.env.local
+.DS_Store
+coverage/
+.vscode/
+.idea/
+
+# Native
+apps/mobile/ios/
+apps/mobile/android/
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+*.xcarchive
+*.ipa
+*.apk
+*.aab
+
+# Rust / Tauri
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/

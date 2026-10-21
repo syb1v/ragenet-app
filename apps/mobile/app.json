@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "RageNet",
+    "slug": "ragenet",
+    "scheme": "ragenet",
+    "version": "0.1.1",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#080D18",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "net.ragenet.vpn",
+      "buildNumber": "1",
+      "infoPlist": {
+        "CFBundleDisplayName": "RageNet VPN",
+        "UIUserInterfaceStyle": "Dark",
+        "NSLocalNetworkUsageDescription": "RageNet использует локальную сеть для диагностики подключения."
+      }
+    },
+    "android": {
+      "package": "net.ragenet.vpn",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#080D18",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "RageNet VPN",
+      "shortName": "RageNet"
+    },
+    "plugins": []
+  }
+}

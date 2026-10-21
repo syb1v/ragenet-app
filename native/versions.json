@@ -1,0 +1,11 @@
+{
+  "libXray": "v26.10.17",
+  "xrayCore": "v26.10.17",
+  "go": "1.27.1",
+  "androidNdk": "r29",
+  "androidMinSdk": 26,
+  "androidTargetSdk": 36,
+  "iosMinVersion": "15.0",
+  "macosMinVersion": "13.0",
+  "notes": "Pin these versions in CI. Bump deliberately and run the staging connect matrix before releasing."
+}

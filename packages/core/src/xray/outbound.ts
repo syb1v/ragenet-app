@@ -1,0 +1,336 @@
+import type { ServerNode } from '../types';
+import { decodeBase64 } from '../subscription/base64';
+
+type JsonObject = Record<string, unknown>;
+
+export class UnsupportedProtocolError extends Error {
+  constructor(protocol: string) {
+    super(`Протокол ${protocol} пока не поддерживается`);
+    this.name = 'UnsupportedProtocolError';
+  }
+}
+
+function queryObject(link: string): Record<string, string> {
+  const queryIndex = link.indexOf('?');
+  if (queryIndex < 0) return {};
+  const hashIndex = link.indexOf('#', queryIndex);
+  const raw = link.slice(queryIndex + 1, hashIndex >= 0 ? hashIndex : undefined);
+  const result: Record<string, string> = {};
+  for (const pair of raw.split('&')) {
+    if (!pair) continue;
+    const equals = pair.indexOf('=');
+    const key = equals >= 0 ? pair.slice(0, equals) : pair;
+    const value = equals >= 0 ? pair.slice(equals + 1) : '';
+    try {
+      result[decodeURIComponent(key)] = decodeURIComponent(value);
+    } catch {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+function authorityFromLink(link: string): string {
+  const prefix = link.indexOf('://') + 3;
+  const rest = link.slice(prefix);
+  const end = rest.search(/[/?#]/);
+  return end >= 0 ? rest.slice(0, end) : rest;
+}
+
+function hostPortFromAuthority(
+  authority: string,
+  fallbackPort: number,
+): {
+  user: string;
+  host: string;
+  port: number;
+} {
+  const at = authority.lastIndexOf('@');
+  const user = at >= 0 ? authority.slice(0, at) : '';
+  const hostPort = at >= 0 ? authority.slice(at + 1) : authority;
+  if (hostPort.startsWith('[')) {
+    const end = hostPort.indexOf(']');
+    const host = hostPort.slice(1, end);
+    const port = Number(hostPort.slice(end + 2)) || fallbackPort;
+    return { user, host, port };
+  }
+  const colon = hostPort.lastIndexOf(':');
+  if (colon > 0) {
+    return {
+      user,
+      host: hostPort.slice(0, colon),
+      port: Number(hostPort.slice(colon + 1)) || fallbackPort,
+    };
+  }
+  return { user, host: hostPort, port: fallbackPort };
+}
+
+function streamSettings(link: string): JsonObject {
+  const query = queryObject(link);
+  const network = (query.type || query.net || 'tcp').toLowerCase();
+  const security = (query.security || query.tls || 'none').toLowerCase();
+  const result: JsonObject = {
+    network: network === 'tcp' ? 'raw' : network === 'splithttp' ? 'xhttp' : network,
+    security: security === 'xtls' ? 'tls' : security === 'none' ? 'none' : security,
+  };
+
+  if (security === 'tls' || security === 'xtls') {
+    result.tlsSettings = {
+      serverName: query.sni || query.host || '',
+      fingerprint: query.fp || 'chrome',
+      allowInsecure: false,
+      ...(query.alpn ? { alpn: query.alpn.split(',') } : {}),
+    };
+  }
+
+  if (security === 'reality') {
+    result.realitySettings = {
+      serverName: query.sni || '',
+      fingerprint: query.fp || 'chrome',
+      publicKey: query.pbk || '',
+      shortId: query.sid || '',
+      spiderX: query.spx || '',
+    };
+  }
+
+  if (network === 'ws' || network === 'websocket') {
+    result.wsSettings = {
+      path: query.path || '/',
+      headers: query.host ? { Host: query.host } : {},
+    };
+  }
+
+  if (network === 'grpc') {
+    result.grpcSettings = {
+      serviceName: query.serviceName || query.path || '',
+      ...(query.authority ? { authority: query.authority } : {}),
+      multiMode: query.mode === 'multi',
+    };
+  }
+
+  if (network === 'httpupgrade') {
+    result.httpupgradeSettings = {
+      host: query.host || '',
+      path: query.path || '/',
+    };
+  }
+
+  if (network === 'xhttp' || network === 'splithttp') {
+    result.xhttpSettings = {
+      host: query.host || '',
+      path: query.path || '/',
+      mode: query.mode || 'auto',
+    };
+  }
+
+  if (network === 'mkcp' || network === 'kcp') {
+    result.kcpSettings = {
+      header: { type: query.headerType || 'none' },
+      seed: query.seed || '',
+    };
+  }
+
+  return result;
+}
+
+function parseVmessLink(link: string): {
+  json: Record<string, unknown>;
+  host: string;
+  port: number;
+} | null {
+  const payload = link.replace(/^vmess:\/\//i, '').split('#')[0];
+  try {
+    const json = JSON.parse(decodeBase64(payload)) as Record<string, unknown>;
+    const host = String(json.add ?? '');
+    const port = Number(json.port ?? 443);
+    if (!host || !Number.isFinite(port)) return null;
+    return { json, host, port };
+  } catch {
+    return null;
+  }
+}
+
+function vmessStreamSettings(json: Record<string, unknown>): JsonObject {
+  const network = String(json.net ?? 'tcp').toLowerCase();
+  const tls = String(json.tls ?? '').toLowerCase();
+  const result: JsonObject = {
+    network: network === 'tcp' ? 'raw' : network,
+    security: tls === 'tls' ? 'tls' : 'none',
+  };
+  if (tls === 'tls') {
+    result.tlsSettings = {
+      serverName: String(json.sni ?? json.host ?? json.add ?? ''),
+      fingerprint: String(json.fp ?? 'chrome'),
+      allowInsecure: false,
+    };
+  }
+  if (network === 'ws') {
+    result.wsSettings = {
+      path: String(json.path ?? '/'),
+      headers: json.host ? { Host: String(json.host) } : {},
+    };
+  }
+  if (network === 'grpc') {
+    result.grpcSettings = {
+      serviceName: String(json.path ?? json.serviceName ?? ''),
+      multiMode: false,
+    };
+  }
+  return result;
+}
+
+function parseShadowsocks(link: string): {
+  method: string;
+  password: string;
+  host: string;
+  port: number;
+} | null {
+  let payload = link
+    .replace(/^ss:\/\//i, '')
+    .split('#')[0]
+    .split('?')[0];
+  let userInfo = '';
+  let hostPort = '';
+  const at = payload.lastIndexOf('@');
+  if (at >= 0) {
+    userInfo = payload.slice(0, at);
+    hostPort = payload.slice(at + 1);
+  } else {
+    const decoded = decodeBase64(payload);
+    const decodedAt = decoded.lastIndexOf('@');
+    if (decodedAt < 0) return null;
+    userInfo = decoded.slice(0, decodedAt);
+    hostPort = decoded.slice(decodedAt + 1);
+  }
+
+  const credentials = userInfo.includes(':') ? userInfo : decodeBase64(userInfo);
+  const colon = credentials.indexOf(':');
+  if (colon < 0) return null;
+  const method = credentials.slice(0, colon);
+  const password = credentials.slice(colon + 1);
+  const hostColon = hostPort.lastIndexOf(':');
+  if (hostColon < 0) return null;
+  const host = hostPort.slice(0, hostColon);
+  const port = Number(hostPort.slice(hostColon + 1));
+  if (!host || !Number.isFinite(port)) return null;
+  return { method, password, host, port };
+}
+
+export function buildOutbound(node: ServerNode): JsonObject {
+  if (node.protocol === 'vless') {
+    const query = queryObject(node.rawLink);
+    const authority = authorityFromLink(node.rawLink);
+    const { user } = hostPortFromAuthority(authority, node.port);
+    if (!user) throw new UnsupportedProtocolError('vless without uuid');
+    return {
+      tag: node.id,
+      protocol: 'vless',
+      settings: {
+        vnext: [
+          {
+            address: node.host,
+            port: node.port,
+            users: [
+              {
+                id: user,
+                encryption: 'none',
+                flow: query.flow || '',
+              },
+            ],
+          },
+        ],
+      },
+      streamSettings: streamSettings(node.rawLink),
+    };
+  }
+
+  if (node.protocol === 'vmess') {
+    const parsed = parseVmessLink(node.rawLink);
+    if (!parsed) throw new UnsupportedProtocolError('vmess');
+    return {
+      tag: node.id,
+      protocol: 'vmess',
+      settings: {
+        vnext: [
+          {
+            address: parsed.host,
+            port: parsed.port,
+            users: [
+              {
+                id: String(parsed.json.id ?? ''),
+                alterId: Number(parsed.json.aid ?? 0),
+                security: String(parsed.json.scy ?? 'auto'),
+              },
+            ],
+          },
+        ],
+      },
+      streamSettings: vmessStreamSettings(parsed.json),
+    };
+  }
+
+  if (node.protocol === 'trojan') {
+    const authority = authorityFromLink(node.rawLink);
+    const { user } = hostPortFromAuthority(authority, 443);
+    if (!user) throw new UnsupportedProtocolError('trojan without password');
+    return {
+      tag: node.id,
+      protocol: 'trojan',
+      settings: {
+        servers: [{ address: node.host, port: node.port, password: user }],
+      },
+      streamSettings: streamSettings(node.rawLink),
+    };
+  }
+
+  if (node.protocol === 'shadowsocks') {
+    const parsed = parseShadowsocks(node.rawLink);
+    if (!parsed) throw new UnsupportedProtocolError('shadowsocks');
+    return {
+      tag: node.id,
+      protocol: 'shadowsocks',
+      settings: {
+        servers: [
+          {
+            address: parsed.host,
+            port: parsed.port,
+            method: parsed.method,
+            password: parsed.password,
+            uot: true,
+            UoTVersion: 2,
+          },
+        ],
+      },
+    };
+  }
+
+  if (node.protocol === 'socks' || node.protocol === 'http') {
+    const authority = authorityFromLink(node.rawLink);
+    const { user, host, port } = hostPortFromAuthority(authority, node.port);
+    const [username, ...passwordParts] = user.split(':');
+    return {
+      tag: node.id,
+      protocol: node.protocol,
+      settings: {
+        servers: [
+          {
+            address: host || node.host,
+            port: port || node.port,
+            ...(username
+              ? {
+                  users: [
+                    {
+                      user: decodeURIComponent(username),
+                      pass: decodeURIComponent(passwordParts.join(':')),
+                    },
+                  ],
+                }
+              : {}),
+          },
+        ],
+      },
+    };
+  }
+
+  throw new UnsupportedProtocolError(node.protocol);
+}

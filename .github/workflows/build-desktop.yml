@@ -1,0 +1,77 @@
+name: Build desktop
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - app-v*
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            runner: windows-latest
+          - name: macOS universal
+            runner: macos-14
+          - name: Linux x64
+            runner: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.14.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Add macOS universal targets
+        if: runner.os == 'macOS'
+        run: rustup target add x86_64-apple-darwin aarch64-apple-darwin
+
+      - name: Build Tauri app (macOS universal)
+        if: runner.os == 'macOS'
+        run: pnpm --filter @ragenet/desktop exec tauri build --target universal-apple-darwin
+
+      - name: Build Tauri app
+        if: runner.os != 'macOS'
+        run: pnpm --filter @ragenet/desktop build
+
+      - name: Upload bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: ragenet-desktop-${{ matrix.name }}
+          path: apps/desktop/src-tauri/target/**/release/bundle
+          if-no-files-found: error

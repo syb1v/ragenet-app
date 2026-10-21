@@ -1,0 +1,59 @@
+name: Native assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      libxray_tag:
+        description: libXray release tag
+        required: true
+        default: v26.10.17
+  push:
+    tags:
+      - native-v*
+
+permissions:
+  contents: read
+
+env:
+  LIBXRAY_TAG: ${{ github.event.inputs.libxray_tag || 'v26.10.17' }}
+
+jobs:
+  download:
+    name: Download ${{ matrix.asset }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - asset: libxray-android.zip
+            folder: android
+          - asset: libxray-apple-cgo.zip
+            folder: apple
+          - asset: libxray-linux-x64.zip
+            folder: linux-x64
+          - asset: libxray-linux-arm64.zip
+            folder: linux-arm64
+          - asset: libxray-windows-x64.zip
+            folder: windows-x64
+          - asset: libxray-windows-arm64.zip
+            folder: windows-arm64
+    steps:
+      - name: Download release asset
+        run: |
+          mkdir -p native-dist/${{ matrix.folder }}
+          curl -fL --retry 3 \
+            "https://github.com/XTLS/libXray/releases/download/${LIBXRAY_TAG}/${{ matrix.asset }}" \
+            -o native-dist/${{ matrix.folder }}/${{ matrix.asset }}
+          cd native-dist/${{ matrix.folder }}
+          unzip -q ${{ matrix.asset }}
+          rm ${{ matrix.asset }}
+          sha256sum * > SHA256SUMS.txt || true
+          cat SHA256SUMS.txt
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: libxray-${{ matrix.folder }}
+          path: native-dist/${{ matrix.folder }}
+          if-no-files-found: error

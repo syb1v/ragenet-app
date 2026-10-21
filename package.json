@@ -1,0 +1,26 @@
+{
+  "name": "ragenet-app",
+  "version": "0.1.1",
+  "private": true,
+  "license": "AGPL-3.0",
+  "packageManager": "pnpm@12.14.0",
+  "scripts": {
+    "dev": "pnpm --filter @ragenet/mobile start",
+    "web": "pnpm --filter @ragenet/mobile web",
+    "android": "pnpm --filter @ragenet/mobile android",
+    "ios": "pnpm --filter @ragenet/mobile ios",
+    "build:web": "pnpm --filter @ragenet/mobile build:web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "pnpm -r typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "version:check": "node scripts/check-versions.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "1.64.1",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.5"
+  }
+}

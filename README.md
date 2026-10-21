@@ -1,0 +1,110 @@
+# RageNet VPN app
+
+Кроссплатформенный клиент RageNet на React Native (мобильные) и Tauri + React Native Web (десктоп). Ядро — Xray-core через `libXray`, с встроенным TUN-инбаундом.
+
+> **Статус: Phase 0, версия 0.1.1.** Это рабочий UI-прототип и фундамент проекта, а не готовый VPN-клиент. Реальный туннель, подпись iOS и привилегированный desktop-helper ещё не подключены. План и даты — в [docs/ROADMAP.md](docs/ROADMAP.md), версии — в [docs/VERSIONING.md](docs/VERSIONING.md).
+
+## Что уже работает
+
+- онбординг с добавлением ключа: буфер, QR-заглушка, ручной ввод;
+- главный экран с живым шаром из 2 200 частиц: явный тап или удержание подключает/отключает, перетаскивание — игра с частицами и лёгкие haptic-тики по скорости движения; плавный импульс на действие (пока mock);
+- карточка подписки, трафик, срок действия, выбор сервера, поддержка;
+- компактное меню подписки рядом с кнопкой «…»: QR, поделиться, копировать, удалить;
+- настройки, логи, сброс, «О приложении»;
+- парсер Remnawave-подписок: base64/plain/JSON/full Xray config, заголовки `subscription-userinfo`, `profile-title`, `support-url`, `announce`;
+- сборщик Xray-конфига с TUN inbound, DNS, stats и routing-пресетами;
+- безопасный санитайзер полных Xray-конфигов;
+- детерминированная симуляция шара + Canvas2D renderer для web и Skia renderer для native;
+- Tauri 2 shell для Windows/macOS/Linux;
+- генератор иконок из брендового логотипа;
+- unit-тесты парсера, конфига и симуляции.
+
+## Превью
+
+| Онбординг                                 | Главный экран                 | Настройки                             |
+| ----------------------------------------- | ----------------------------- | ------------------------------------- |
+| ![Onboarding](screenshots/onboarding.png) | ![Home](screenshots/home.png) | ![Settings](screenshots/settings.png) |
+
+## Быстрый старт
+
+```bash
+pnpm install
+pnpm web          # Expo web, http://localhost:8081
+pnpm test
+pnpm typecheck
+pnpm build:web
+```
+
+Демо-режим без подписки:
+
+```
+http://localhost:8081/?demo=1
+http://localhost:8081/?demo=1&screen=settings
+```
+
+На мобильном в онбординге есть ссылка «Посмотреть демо». В окне добавления ключа можно ввести `demo`.
+
+## Структура
+
+```
+apps/
+  mobile/        Expo React Native (Android/iOS)
+  desktop/       Tauri 2 shell поверх Expo web build
+packages/
+  design/        токены, шрифты, темы
+  core/          подписки, Remnawave-заголовки, Xray-конфиг, HWID
+  vpn/           контракт native bridge + mock
+  particles/     симуляция шара
+  ui/            экраны, компоненты, store
+native/
+  android/       контракт VpnService + libXray
+  ios/           контракт Packet Tunnel + LibXray
+  desktop/       контракт Xray sidecar + helper
+tools/
+  generate-icons.py
+```
+
+## Документация
+
+- [Roadmap и даты](docs/ROADMAP.md)
+- [Архитектура](docs/ARCHITECTURE.md)
+- [Версионирование и релизы](docs/VERSIONING.md)
+- [Сборки в GitHub Actions](docs/BUILDS.md)
+- [Подпись и дистрибуция](docs/SIGNING.md)
+- [Phase 0: что сделано](docs/PHASE0.md)
+
+## Команды
+
+```bash
+pnpm dev                      # Expo dev server
+pnpm web                      # Expo web
+pnpm android                  # Expo Android
+pnpm ios                      # Expo iOS (macOS)
+pnpm build:web                # статический web export в apps/mobile/dist
+pnpm --filter @ragenet/desktop dev   # Tauri dev (нужен Rust)
+pnpm --filter @ragenet/desktop build # Tauri build
+```
+
+## Проверки
+
+```bash
+pnpm version:check
+pnpm format:check
+pnpm typecheck
+pnpm test
+```
+
+CI: `.github/workflows/ci.yml` — типы, тесты, prettier и web build на каждый push/PR.
+
+## Сборки
+
+- Android: универсальный APK должен быть **подписан**. «Неподписанный APK» нельзя установить; CI собирает debug/self-signed universal APK.
+- iOS: unsigned IPA собирается, но VPN-extension не запустится без платного Apple Developer Program и entitlement `packet-tunnel-provider`.
+- macOS: для полноценного TUN нужен привилегированный helper; для распространения — Developer ID + notarization.
+- Windows: EXE будет без подписи, пока не добавлен code-signing сертификат.
+
+Подробности: [docs/SIGNING.md](docs/SIGNING.md).
+
+## Лицензия
+
+AGPL-3.0. Xray-core распространяется под MPL-2.0, libXray — под MIT. Сторонние лицензии и attribution добавляются в `THIRD_PARTY_NOTICES.md` перед первым релизом.
