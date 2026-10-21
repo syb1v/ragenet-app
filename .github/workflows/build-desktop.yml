@@ -26,7 +26,7 @@ jobs:
             runner: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -41,12 +41,12 @@ jobs:
             libayatana-appindicator3-dev
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 12.14.0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -70,7 +70,7 @@ jobs:
         run: pnpm --filter @ragenet/desktop build
 
       - name: Upload bundles
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ragenet-desktop-${{ matrix.name }}
           path: apps/desktop/src-tauri/target/**/release/bundle

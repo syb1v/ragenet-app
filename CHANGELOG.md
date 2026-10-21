@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-21
+
+### Fixed
+
+- Updated GitHub Actions to current majors; `setup-android@v4` fixes the
+  missing `tools` package failure on the mobile build runner.
+
 ## [0.1.1] - 2026-10-21
 
 ### Added
