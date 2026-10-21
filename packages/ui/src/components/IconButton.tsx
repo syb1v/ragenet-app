@@ -1,6 +1,7 @@
 import { colors, radii } from '@ragenet/design';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { tapHaptic } from '../lib/haptics';
 
 interface IconButtonProps {
   children: ReactNode;
@@ -31,7 +32,9 @@ export function IconButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      android_ripple={Platform.OS === 'android' ? { color: colors.white10 } : undefined}
       onPress={onPress}
+      onPressIn={tapHaptic}
       style={({ pressed }) => [
         styles.button,
         {
@@ -41,6 +44,7 @@ export function IconButton({
           backgroundColor,
           borderColor,
           opacity: pressed ? 0.7 : 1,
+          transform: [{ scale: pressed ? 0.94 : 1 }],
         },
         style,
       ]}

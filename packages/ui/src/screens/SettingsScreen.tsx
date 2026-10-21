@@ -1,14 +1,17 @@
 import { colors, fonts } from '@ragenet/design';
 import { shortHwid } from '@ragenet/core';
-import { ChevronRight, FileText, LifeBuoy, Trash2, Wifi, X } from 'lucide-react-native';
+import Constants from 'expo-constants';
+import { ChevronRight, FileText, LifeBuoy, Send, Trash2, Wifi, X } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Card, Divider } from '../components/Card';
 import { Header } from '../components/Header';
 import { IconButton } from '../components/IconButton';
 import { Screen } from '../components/Screen';
 import { DEMO_SUPPORT_URL } from '../lib/demo';
 import { todayLabel } from '../lib/format';
+import { tapHaptic } from '../lib/haptics';
+import { TELEGRAM_BOT_URL } from '../lib/links';
 import { DEVICE, useAppStore } from '../store/useAppStore';
 
 interface SettingRowProps {
@@ -26,8 +29,12 @@ function SettingRow({ icon, label, value, onPress, danger, last, mono }: Setting
     <>
       <Pressable
         accessibilityRole={onPress ? 'button' : undefined}
+        android_ripple={
+          onPress && Platform.OS === 'android' ? { color: colors.white10 } : undefined
+        }
         disabled={!onPress}
         onPress={onPress}
+        onPressIn={onPress ? tapHaptic : undefined}
         style={({ pressed }) => [styles.row, pressed && onPress ? styles.pressed : null]}
       >
         {icon ? <View style={styles.rowIcon}>{icon}</View> : null}
@@ -55,12 +62,21 @@ function SectionLabel({ children }: { children: string }) {
   return <Text style={styles.sectionLabel}>{children}</Text>;
 }
 
-export function SettingsScreen() {
+interface SettingsScreenProps {
+  onClose?: () => void;
+}
+
+export function SettingsScreen({ onClose }: SettingsScreenProps = {}) {
   const navigate = useAppStore((state) => state.navigate);
   const openSheet = useAppStore((state) => state.openSheet);
   const showToast = useAppStore((state) => state.showToast);
   const subscription = useAppStore((state) => state.subscription);
   const supportUrl = subscription?.meta.supportUrl ?? DEMO_SUPPORT_URL;
+  const appVersion = Constants.expoConfig?.version ?? '0.1.7';
+  const buildNumber =
+    Platform.OS === 'ios'
+      ? (Constants.expoConfig?.ios?.buildNumber ?? '1')
+      : String(Constants.expoConfig?.android?.versionCode ?? '1');
 
   const openSupport = async () => {
     try {
@@ -70,11 +86,22 @@ export function SettingsScreen() {
     }
   };
 
+  const openBot = async () => {
+    try {
+      await Linking.openURL(TELEGRAM_BOT_URL);
+    } catch {
+      showToast(`Telegram-бот: ${TELEGRAM_BOT_URL}`);
+    }
+  };
+
   return (
     <Screen>
       <Header
         left={
-          <IconButton accessibilityLabel="Закрыть настройки" onPress={() => navigate('home')}>
+          <IconButton
+            accessibilityLabel="Закрыть настройки"
+            onPress={onClose ?? (() => navigate('home'))}
+          >
             <X color={colors.text} size={22} strokeWidth={1.8} />
           </IconButton>
         }
@@ -84,7 +111,9 @@ export function SettingsScreen() {
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
-        bounces={false}
+        bounces
+        alwaysBounceVertical
+        overScrollMode="always"
       >
         <SectionLabel>Ссылки</SectionLabel>
         <Card padded={false}>
@@ -102,6 +131,11 @@ export function SettingsScreen() {
             icon={<LifeBuoy color={colors.brandStrong} size={21} strokeWidth={1.7} />}
             label="Поддержка"
             onPress={openSupport}
+          />
+          <SettingRow
+            icon={<Send color={colors.brandStrong} size={20} strokeWidth={1.7} />}
+            label="Telegram-бот"
+            onPress={openBot}
             last
           />
         </Card>
@@ -124,8 +158,8 @@ export function SettingsScreen() {
 
         <SectionLabel>О приложении</SectionLabel>
         <Card padded={false}>
-          <SettingRow label="Версия" value="0.1.0" />
-          <SettingRow label="Сборка" value="1" />
+          <SettingRow label="Версия" value={appVersion} />
+          <SettingRow label="Сборка" value={buildNumber} />
           <SettingRow label="Дата сборки" value={todayLabel()} />
           <SettingRow label="Версия ядра" value="Xray 26.10" mono />
           <SettingRow label="ID устройства" value={shortHwid(DEVICE.hwid)} mono />

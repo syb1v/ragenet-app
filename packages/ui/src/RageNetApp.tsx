@@ -13,12 +13,12 @@ import { useEffect } from 'react';
 import { Linking, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RageNetMark } from './components/Logo';
+import { SettingsModal } from './components/SettingsModal';
 import { SubscriptionMenu } from './components/SubscriptionMenu';
 import { Toast } from './components/Toast';
 import { HomeScreen } from './screens/HomeScreen';
 import { LogsScreen } from './screens/LogsScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
-import { SettingsScreen } from './screens/SettingsScreen';
 import { AddKeySheet } from './sheets/AddKeySheet';
 import { DeleteSubscriptionSheet } from './sheets/DeleteSubscriptionSheet';
 import { QrSheet } from './sheets/QrSheet';
@@ -113,12 +113,12 @@ export function RageNetApp() {
       <View style={styles.root}>
         {!subscription ? (
           <OnboardingScreen />
-        ) : screen === 'settings' ? (
-          <SettingsScreen />
-        ) : screen === 'logs' ? (
-          <LogsScreen />
         ) : (
-          <HomeScreen />
+          <>
+            <HomeScreen />
+            {screen === 'logs' ? <LogsScreen /> : null}
+            <SettingsModal visible={screen === 'settings'} onClose={() => navigate('home')} />
+          </>
         )}
         <AddKeySheet />
         <ServersSheet />

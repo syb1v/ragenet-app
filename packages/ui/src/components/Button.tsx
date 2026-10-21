@@ -1,6 +1,15 @@
 import { colors, fonts, layout, radii } from '@ragenet/design';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
+import { tapHaptic } from '../lib/haptics';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -52,18 +61,25 @@ export function Button({
   accessibilityLabel,
 }: ButtonProps) {
   const variantStyle = variantStyles[variant];
+  const iosShape =
+    Platform.OS === 'ios' ? ({ borderCurve: 'continuous' } as unknown as ViewStyle) : null;
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      android_ripple={Platform.OS === 'android' ? { color: colors.white10 } : undefined}
       disabled={disabled}
       onPress={onPress}
+      onPressIn={disabled ? undefined : tapHaptic}
       style={({ pressed }) => [
         styles.button,
+        iosShape,
         {
           backgroundColor: variantStyle.backgroundColor,
           borderColor: variantStyle.borderColor,
-          opacity: disabled ? 0.45 : pressed ? 0.82 : 1,
+          opacity: disabled ? 0.45 : pressed ? 0.86 : 1,
+          transform: [{ scale: pressed && !disabled ? 0.985 : 1 }],
         },
         style,
       ]}

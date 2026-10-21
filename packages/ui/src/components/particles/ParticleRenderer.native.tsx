@@ -1,4 +1,4 @@
-import { Canvas, Circle, Points, type SkPoint } from '@shopify/react-native-skia';
+import { Canvas, Points, type SkPoint } from '@shopify/react-native-skia';
 import type { ParticleMode, ParticleSphereSimulation } from '@ragenet/particles';
 import { useEffect, useRef, useState } from 'react';
 
@@ -70,16 +70,6 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
 
   return (
     <Canvas style={{ width: size, height: size }}>
-      {mode !== 'idle' ? (
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={size * 0.345}
-          color={mode === 'connected' ? 'rgba(108,121,219,0.3)' : 'rgba(154,130,246,0.32)'}
-          style="stroke"
-          strokeWidth={1}
-        />
-      ) : null}
       <Points
         points={points}
         mode="points"

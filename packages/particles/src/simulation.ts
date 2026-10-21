@@ -65,7 +65,7 @@ export class ParticleSphereSimulation {
   reaction = 0;
 
   constructor(options: ParticleSphereOptions = {}) {
-    this.count = options.count ?? 1800;
+    this.count = options.count ?? 1200;
     this.base = new Float32Array(this.count * 3);
     this.position = new Float32Array(this.count * 3);
     this.velocity = new Float32Array(this.count * 3);
@@ -77,26 +77,40 @@ export class ParticleSphereSimulation {
 
     for (let index = 0; index < this.count; index += 1) {
       const y = 1 - (index / Math.max(1, this.count - 1)) * 2;
-      const radius = Math.sqrt(Math.max(0, 1 - y * y));
-      const theta = index * GOLDEN_ANGLE;
-      const x = Math.cos(theta) * radius;
-      const z = Math.sin(theta) * radius;
+      const ringRadius = Math.sqrt(Math.max(0, 1 - y * y));
+      const theta = index * GOLDEN_ANGLE + (random() - 0.5) * 0.22;
 
+      let x = Math.cos(theta) * ringRadius;
+      let yy = y;
+      let z = Math.sin(theta) * ringRadius;
+
+      // Jitter the lattice just enough to remove the synthetic regularity.
+      const jitter = 0.08 + random() * 0.12;
+      x += (random() - 0.5) * jitter;
+      yy += (random() - 0.5) * jitter;
+      z += (random() - 0.5) * jitter;
+      const length = Math.max(0.001, Math.hypot(x, yy, z));
+      x /= length;
+      yy /= length;
+      z /= length;
+
+      const outlier = random() < 0.04;
+      const radius = outlier ? 1.08 + random() * 0.12 : 0.9 + random() * 0.13;
       const offset = index * 3;
-      this.base[offset] = x;
-      this.base[offset + 1] = y;
-      this.base[offset + 2] = z;
+      this.base[offset] = x * radius;
+      this.base[offset + 1] = yy * radius;
+      this.base[offset + 2] = z * radius;
 
-      this.position[offset] = x;
-      this.position[offset + 1] = y;
-      this.position[offset + 2] = z;
+      this.position[offset] = this.base[offset];
+      this.position[offset + 1] = this.base[offset + 1];
+      this.position[offset + 2] = this.base[offset + 2];
 
       this.velocity[offset] = (random() - 0.5) * 0.02;
       this.velocity[offset + 1] = (random() - 0.5) * 0.02;
       this.velocity[offset + 2] = (random() - 0.5) * 0.02;
 
       this.phase[index] = random() * TAU;
-      this.pointSize[index] = 0.6 + random() * 0.8;
+      this.pointSize[index] = 0.35 + random() * 0.55;
     }
   }
 
@@ -183,8 +197,8 @@ export class ParticleSphereSimulation {
       1 - this.chargeLevel * 0.03 + Math.sin(this.time * 1.1) * 0.003 - this.reaction * 0.02;
     this.radiusLevel += (targetRadius - this.radiusLevel) * Math.min(1, step * 3);
 
-    const stiffness = 24 + this.chargeLevel * 22;
-    const damping = 7.5 + this.chargeLevel * 3;
+    const stiffness = 18 + this.chargeLevel * 20;
+    const damping = 7 + this.chargeLevel * 3;
     const targetJitter =
       0.0025 +
       this.chargeLevel * 0.018 +
@@ -325,7 +339,7 @@ export class ParticleSphereSimulation {
       // Charge feedback is a deliberate high-frequency tremble. It is applied
       // in screen space so it never destabilises the spring simulation.
       if (this.chargeLevel > 0.001) {
-        const tremble = this.chargeLevel * 4.5;
+        const tremble = this.chargeLevel * 5.2;
         screenX += Math.sin(this.time * 46 + index * 2.1) * tremble;
         screenY += Math.cos(this.time * 41 + index * 1.7) * tremble;
       }
@@ -334,7 +348,7 @@ export class ParticleSphereSimulation {
       projected[output] = screenX;
       projected[output + 1] = screenY;
       projected[output + 2] =
-        (0.3 + depth * 1.25 + this.chargeLevel * 0.1) *
+        (0.28 + depth * 1.05 + this.chargeLevel * 0.1) *
         (size / 300) *
         this.pointSize[index] *
         (1 + this.reaction * 0.18);

@@ -2,6 +2,12 @@ name: Build iOS
 
 on:
   workflow_dispatch:
+    inputs:
+      configuration:
+        description: Build configuration
+        type: choice
+        options: [Debug, Release]
+        default: Debug
   push:
     tags:
       - app-v*
@@ -12,6 +18,7 @@ permissions:
 env:
   CI: '1'
   EXPO_NO_TELEMETRY: '1'
+  CONFIGURATION: ${{ github.event.inputs.configuration || (startsWith(github.ref, 'refs/tags/') && 'Release' || 'Debug') }}
 
 jobs:
   ios:
@@ -45,16 +52,32 @@ jobs:
         run: |
           VERSION=$(node -p "require('./apps/mobile/app.json').expo.version")
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "Building RageNet $VERSION"
+          echo "Building RageNet $VERSION ($CONFIGURATION)"
 
       - name: Generate iOS project
         run: pnpm --filter @ragenet/mobile exec expo prebuild --platform ios --no-install
+
+      - name: Restore CocoaPods cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cocoapods
+            apps/mobile/ios/Pods
+          key: pods-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pods-${{ runner.os }}-
 
       - name: Install CocoaPods
         working-directory: apps/mobile/ios
         run: |
           pod --version
-          pod install --repo-update
+          pod install
+
+      - name: Restore DerivedData cache
+        uses: actions/cache@v4
+        with:
+          path: apps/mobile/ios/build
+          key: ios-derived-${{ runner.os }}-${{ github.sha }}-${{ env.CONFIGURATION }}
 
       - name: Build unsigned archive
         working-directory: apps/mobile/ios
@@ -63,7 +86,7 @@ jobs:
           xcodebuild \
             -workspace RageNet.xcworkspace \
             -scheme RageNet \
-            -configuration Release \
+            -configuration "$CONFIGURATION" \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -derivedDataPath build \
@@ -72,13 +95,15 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
             ONLY_ACTIVE_ARCH=NO \
+            -parallelizeTargets \
+            -jobs 4 \
             | tee xcodebuild.log
 
       - name: Package IPA
         run: |
           mkdir -p artifacts/Payload
           ditto \
-            apps/mobile/ios/build/Build/Products/Release-iphoneos/RageNet.app \
+            "apps/mobile/ios/build/Build/Products/${CONFIGURATION}-iphoneos/RageNet.app" \
             artifacts/Payload/RageNet.app
           cd artifacts
           zip -qry "RageNet-${APP_VERSION}-ios-unsigned.ipa" Payload

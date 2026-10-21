@@ -8,6 +8,7 @@ import {
   MoreHorizontal,
   Plus,
   RefreshCw,
+  Send,
   Settings,
 } from 'lucide-react-native';
 import { useEffect, useRef, type ComponentRef } from 'react';
@@ -28,6 +29,7 @@ import { ParticleSphere } from '../components/particles/ParticleSphere';
 import { errorHaptic, successHaptic } from '../lib/haptics';
 import { formatBytes, formatDate, formatUpdated, stripFlag } from '../lib/format';
 import { DEMO_SUPPORT_URL } from '../lib/demo';
+import { TELEGRAM_BOT_URL } from '../lib/links';
 import { useAppStore } from '../store/useAppStore';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -82,6 +84,14 @@ export function HomeScreen() {
     }
   };
 
+  const openBot = async () => {
+    try {
+      await Linking.openURL(TELEGRAM_BOT_URL);
+    } catch {
+      showToast(`Telegram-бот: ${TELEGRAM_BOT_URL}`);
+    }
+  };
+
   return (
     <Screen>
       <Header
@@ -122,8 +132,8 @@ export function HomeScreen() {
           </Pressable>
           <Text style={styles.hint}>
             {isConnected
-              ? 'Тап или удержание — отключить · перетаскивание — игра'
-              : 'Тап или удержание — подключить · перетаскивание — игра'}
+              ? 'Нажмите или удерживайте, чтобы отключиться'
+              : 'Нажмите или удерживайте, чтобы подключиться'}
           </Text>
         </View>
 
@@ -212,6 +222,15 @@ export function HomeScreen() {
             icon={<Headphones color={colors.text2} size={20} strokeWidth={1.8} />}
             style={styles.supportButton}
           />
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Открыть Telegram-бота"
+            onPress={openBot}
+            style={styles.botLink}
+          >
+            <Send color={colors.text3} size={14} strokeWidth={1.8} />
+            <Text style={styles.botLinkText}>Открыть Telegram-бота</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </Screen>
@@ -226,9 +245,9 @@ const styles = StyleSheet.create({
   sphereArea: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 348,
-    paddingBottom: 6,
-    paddingTop: 2,
+    minHeight: 318,
+    paddingBottom: 4,
+    paddingTop: 0,
   },
   status: {
     color: colors.text2,
@@ -251,8 +270,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   info: {
-    gap: 12,
-    marginTop: 10,
+    gap: 10,
+    marginTop: 8,
   },
   subscriptionRow: {
     alignItems: 'center',
@@ -283,17 +302,17 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   statCard: {
     backgroundColor: colors.surface,
     borderColor: colors.line,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     flex: 1,
-    minHeight: 92,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    minHeight: 72,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   statLabelRow: {
     alignItems: 'center',
@@ -303,33 +322,33 @@ const styles = StyleSheet.create({
   statLabel: {
     color: colors.text2,
     fontFamily: fonts.medium,
-    fontSize: 12.5,
+    fontSize: 12,
   },
   statValue: {
     color: colors.text,
     fontFamily: fonts.bold,
-    fontSize: 16,
+    fontSize: 15,
     letterSpacing: -0.2,
-    lineHeight: 21,
-    marginTop: 8,
+    lineHeight: 19,
+    marginTop: 5,
   },
   statSub: {
     color: colors.text3,
     fontFamily: fonts.regular,
-    fontSize: 11.5,
-    lineHeight: 15,
-    marginTop: 1,
+    fontSize: 11,
+    lineHeight: 14,
+    marginTop: 0,
   },
   serverRow: {
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.line,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 12,
-    minHeight: 64,
-    paddingHorizontal: 14,
+    minHeight: 58,
+    paddingHorizontal: 12,
   },
   pressed: {
     opacity: 0.8,
@@ -356,8 +375,20 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   supportButton: {
-    height: 54,
+    height: 50,
     marginTop: 0,
     borderRadius: radii.md,
+  },
+  botLink: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  botLinkText: {
+    color: colors.text3,
+    fontFamily: fonts.medium,
+    fontSize: 12,
   },
 });

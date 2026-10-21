@@ -85,20 +85,6 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
         context.fill();
       }
 
-      if (mode === 'connecting' || mode === 'connected') {
-        context.globalCompositeOperation = 'source-over';
-        context.beginPath();
-        context.arc(center, center, size * 0.345, 0, Math.PI * 2);
-        context.strokeStyle =
-          mode === 'connected'
-            ? `rgba(108, 121, 219, ${0.28 + reaction * 0.18})`
-            : `rgba(154, 130, 246, ${0.32 + reaction * 0.18})`;
-        context.lineWidth = 1;
-        context.setLineDash(mode === 'connecting' ? [3, 7] : []);
-        context.stroke();
-        context.setLineDash([]);
-      }
-
       context.globalCompositeOperation = 'source-over';
 
       // A tiny deterministic twinkle every few frames keeps the sphere alive.

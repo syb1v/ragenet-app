@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-10-21
+
+### Added
+
+- Organic jittered particle sphere with irregular density, radius variation and outliers.
+- Global particle tremble during hold, including when the finger moves inside the sphere.
+- Telegram bot link on Home and in Settings.
+- Native-feeling press states (iOS scale, Android ripple) and continuous border curves.
+- Settings page sheet on iOS and animated slide on Android/web.
+- CocoaPods/DerivedData caching and debug/release build modes in CI.
+
+### Changed
+
+- Sphere reduced to 1600 particles and a smaller footprint.
+- Hold now triggers inside the sphere even while dragging; leaving the sphere cancels it.
+- Removed the drag/play hint and the charge ring.
+- Traffic and expiry cards made more compact.
+
+### Fixed
+
+- Settings version/build number now come from Expo config instead of hardcoded values.
+
 ## [0.1.6] - 2026-10-21
 
 ### Changed

@@ -1,7 +1,6 @@
-import { colors, layout } from '@ragenet/design';
 import type { VpnState } from '@ragenet/core';
 import { ParticleSphereSimulation, type ParticleMode } from '@ragenet/particles';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   Platform,
   StyleSheet,
@@ -27,13 +26,21 @@ interface ParticleSphereProps {
 
 const HOLD_MS = 600;
 const TAP_MAX_MS = 260;
-const MOVE_CANCEL_PX = 26;
 
 export function ParticleSphere({ state, onToggle, size: explicitSize }: ParticleSphereProps) {
   const { width } = useWindowDimensions();
-  const size = explicitSize ?? Math.min(width * 0.8, layout.sphereMaxSize);
-  const simulation = useMemo(() => new ParticleSphereSimulation({ count: 2200 }), []);
-  const [charge, setCharge] = useState(0);
+  const size = explicitSize ?? Math.min(width * 0.7, 280);
+  const hitRadius = size * 0.43;
+  const simulation = useMemo(() => new ParticleSphereSimulation({ count: 1600 }), []);
+
+  const pressing = useRef(false);
+  const triggeredByHold = useRef(false);
+  const pressStartedAt = useRef(0);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chargeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastPoint = useRef<{ x: number; y: number } | null>(null);
+  const previousState = useRef(state);
+
   const webGestureStyle =
     Platform.OS === 'web'
       ? ({
@@ -43,16 +50,6 @@ export function ParticleSphere({ state, onToggle, size: explicitSize }: Particle
           touchAction: 'none',
         } as unknown as ViewStyle)
       : undefined;
-
-  const pressing = useRef(false);
-  const dragging = useRef(false);
-  const triggeredByHold = useRef(false);
-  const pressStartedAt = useRef(0);
-  const pressOrigin = useRef<{ x: number; y: number } | null>(null);
-  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const chargeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastPoint = useRef<{ x: number; y: number } | null>(null);
-  const previousState = useRef(state);
 
   const mode: ParticleMode =
     state === 'connected'
@@ -90,40 +87,41 @@ export function ParticleSphere({ state, onToggle, size: explicitSize }: Particle
     [],
   );
 
-  const cancelCharge = () => {
+  const isInside = (x: number, y: number): boolean => {
+    const dx = x - size / 2;
+    const dy = y - size / 2;
+    return Math.hypot(dx, dy) <= hitRadius;
+  };
+
+  const resetCharge = () => {
     clearTimers();
     stopHapticRamp();
     simulation.setCharge(0);
-    setCharge(0);
   };
 
   const beginPress = (event: GestureResponderEvent) => {
+    const { locationX, locationY } = event.nativeEvent;
+    if (!isInside(locationX, locationY)) return;
+
     clearTimers();
     pressing.current = true;
-    dragging.current = false;
     triggeredByHold.current = false;
     pressStartedAt.current = Date.now();
-    pressOrigin.current = {
-      x: event.nativeEvent.locationX,
-      y: event.nativeEvent.locationY,
-    };
     lastPoint.current = null;
     simulation.setCharge(0);
-    setCharge(0);
     updatePointer(event);
 
     startHapticRamp(HOLD_MS, 120);
     chargeTimer.current = setInterval(() => {
-      if (!pressing.current || dragging.current) return;
+      if (!pressing.current) return;
       const progress = Math.min(1, (Date.now() - pressStartedAt.current) / HOLD_MS);
       simulation.setCharge(progress);
-      setCharge(progress);
     }, 32);
 
     holdTimer.current = setTimeout(() => {
-      if (!pressing.current || dragging.current || triggeredByHold.current) return;
+      if (!pressing.current || triggeredByHold.current) return;
       triggeredByHold.current = true;
-      cancelCharge();
+      resetCharge();
       chargeHaptic('medium');
       onToggle();
     }, HOLD_MS);
@@ -131,18 +129,21 @@ export function ParticleSphere({ state, onToggle, size: explicitSize }: Particle
 
   const updatePointer = (event: GestureResponderEvent) => {
     const { locationX, locationY } = event.nativeEvent;
-    const x = Math.max(0, Math.min(size, locationX)) / size;
-    const y = Math.max(0, Math.min(size, locationY)) / size;
-    simulation.setPointer(x, y);
 
-    if (pressing.current && !dragging.current && !triggeredByHold.current) {
-      const origin = pressOrigin.current;
-      if (origin && Math.hypot(locationX - origin.x, locationY - origin.y) > MOVE_CANCEL_PX) {
-        // The user is playing with the sphere, not committing an action.
-        dragging.current = true;
-        cancelCharge();
-      }
+    if (pressing.current && !isInside(locationX, locationY)) {
+      pressing.current = false;
+      triggeredByHold.current = false;
+      resetCharge();
+      simulation.setPointer(null, null);
+      lastPoint.current = null;
+      return;
     }
+
+    if (!isInside(locationX, locationY)) return;
+
+    const x = locationX / size;
+    const y = locationY / size;
+    simulation.setPointer(x, y);
 
     if (lastPoint.current) {
       const dx = x - lastPoint.current.x;
@@ -150,9 +151,7 @@ export function ParticleSphere({ state, onToggle, size: explicitSize }: Particle
       const pixelDistance = Math.hypot(dx * size, dy * size);
       simulation.addSpin(dx, dy);
       simulation.addPointerEnergy(Math.min(0.35, pixelDistance / 45));
-      if (!triggeredByHold.current && pixelDistance > 2) {
-        dragHaptic(Math.min(1, pixelDistance / 14));
-      }
+      if (pixelDistance > 2) dragHaptic(Math.min(1, pixelDistance / 14));
     }
     lastPoint.current = { x, y };
   };
@@ -160,19 +159,14 @@ export function ParticleSphere({ state, onToggle, size: explicitSize }: Particle
   const finishPress = (allowTap: boolean) => {
     if (!pressing.current) return;
     const elapsed = Date.now() - pressStartedAt.current;
-    const wasDragging = dragging.current;
     const wasTriggered = triggeredByHold.current;
 
     pressing.current = false;
-    clearTimers();
-    stopHapticRamp();
-    simulation.setCharge(0);
-    setCharge(0);
+    resetCharge();
     simulation.setPointer(null, null);
     lastPoint.current = null;
-    pressOrigin.current = null;
 
-    if (allowTap && !wasDragging && !wasTriggered && elapsed <= TAP_MAX_MS) {
+    if (allowTap && !wasTriggered && elapsed <= TAP_MAX_MS) {
       tapHaptic();
       onToggle();
     }
@@ -192,33 +186,27 @@ export function ParticleSphere({ state, onToggle, size: explicitSize }: Particle
       onAccessibilityAction={(event) => {
         if (event.nativeEvent.actionName === 'activate') onToggle();
       }}
-      onMoveShouldSetResponder={() => true}
-      onMoveShouldSetResponderCapture={() => true}
+      onMoveShouldSetResponder={(event) =>
+        isInside(event.nativeEvent.locationX, event.nativeEvent.locationY)
+      }
+      onMoveShouldSetResponderCapture={(event) =>
+        isInside(event.nativeEvent.locationX, event.nativeEvent.locationY)
+      }
       onResponderGrant={beginPress}
       onResponderMove={updatePointer}
       onResponderRelease={() => finishPress(true)}
       onResponderTerminate={() => finishPress(false)}
       onResponderTerminationRequest={() => false}
-      onStartShouldSetResponder={() => true}
-      onStartShouldSetResponderCapture={() => true}
+      onStartShouldSetResponder={(event) =>
+        isInside(event.nativeEvent.locationX, event.nativeEvent.locationY)
+      }
+      onStartShouldSetResponderCapture={(event) =>
+        isInside(event.nativeEvent.locationX, event.nativeEvent.locationY)
+      }
       style={[styles.root, { width: size, height: size }, webGestureStyle]}
       testID="particle-sphere"
     >
       <ParticleRenderer simulation={simulation} size={size} mode={mode} />
-      <View
-        pointerEvents="none"
-        style={[
-          styles.chargeRing,
-          {
-            width: size * 0.96,
-            height: size * 0.96,
-            borderRadius: size,
-            borderColor: state === 'connected' ? colors.danger : colors.brandStrong,
-            opacity: charge * 0.48,
-            transform: [{ scale: 0.98 + charge * 0.05 }],
-          },
-        ]}
-      />
     </View>
   );
 }
@@ -228,9 +216,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-  },
-  chargeRing: {
-    position: 'absolute',
-    borderWidth: 1.2,
   },
 });

@@ -15,7 +15,7 @@ export function createDemoSubscription(): Subscription {
   const expiresAt = Math.floor(Date.now() / 1000) + 34 * 24 * 60 * 60;
   const parsed = parseSubscription(DEMO_LINKS.join('\n'), {
     'profile-title': DEMO_TITLE,
-    'support-url': 'https://t.me/ragenet',
+    'support-url': 'https://t.me/ragenetsupp_bot',
     'profile-update-interval': '6',
     'subscription-userinfo': `upload=${Math.round(0.4 * GB)}; download=${Math.round(12.4 * GB)}; total=${100 * GB}; expire=${expiresAt}`,
   });
@@ -26,7 +26,7 @@ export function createDemoSubscription(): Subscription {
     meta: {
       ...subscription.meta,
       title: DEMO_TITLE,
-      supportUrl: 'https://t.me/ragenet',
+      supportUrl: 'https://t.me/ragenetsupp_bot',
       webPageUrl: 'https://ragenet.example',
       updateIntervalHours: 6,
       totalBytes: 100 * GB,
@@ -38,4 +38,4 @@ export function createDemoSubscription(): Subscription {
   };
 }
 
-export const DEMO_SUPPORT_URL = 'https://t.me/ragenet';
+export const DEMO_SUPPORT_URL = 'https://t.me/ragenetsupp_bot';

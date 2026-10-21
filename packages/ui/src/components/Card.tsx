@@ -1,6 +1,6 @@
 import { colors, radii } from '@ragenet/design';
 import type { ReactNode } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 interface CardProps {
   children: ReactNode;
@@ -9,7 +9,9 @@ interface CardProps {
 }
 
 export function Card({ children, style, padded = true }: CardProps) {
-  return <View style={[styles.card, padded && styles.padded, style]}>{children}</View>;
+  const iosShape =
+    Platform.OS === 'ios' ? ({ borderCurve: 'continuous' } as unknown as ViewStyle) : null;
+  return <View style={[styles.card, iosShape, padded && styles.padded, style]}>{children}</View>;
 }
 
 export function Divider({ inset = 0 }: { inset?: number }) {

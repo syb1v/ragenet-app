@@ -38,7 +38,7 @@ const sphere = page.locator('canvas').first();
 const box = await sphere.boundingBox();
 if (!box) throw new Error('Particle canvas not found');
 
-// Playing with the sphere must not change the VPN state.
+// Hold while moving inside the sphere: charge and connect.
 await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 await page.mouse.down();
 await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2 + 14, { steps: 10 });
@@ -46,31 +46,30 @@ await page.waitForTimeout(320);
 await page.screenshot({ path: path.join(outputDir, 'playing.png') });
 await page.waitForTimeout(580);
 await page.mouse.up();
-await page.waitForTimeout(450);
-const dragStayedDisconnected = await page.getByText('Отключено', { exact: true }).isVisible();
+await page.waitForTimeout(1600);
+const dragHoldConnected = await page.getByText('Подключено', { exact: true }).isVisible();
+await page.screenshot({ path: path.join(outputDir, 'connected.png') });
+
+// Hold while moving inside the sphere: disconnect.
+await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+await page.mouse.down();
+await page.mouse.move(box.x + box.width / 2 + 34, box.y + box.height / 2 + 18, { steps: 8 });
+await page.waitForTimeout(900);
+await page.mouse.up();
+await page.waitForTimeout(1000);
+const dragHoldDisconnected = await page.getByText('Отключено', { exact: true }).isVisible();
 
 // A clear tap connects.
 await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 await page.mouse.down();
 await page.waitForTimeout(80);
 await page.mouse.up();
-
 await page.waitForTimeout(220);
 await page.screenshot({ path: path.join(outputDir, 'reaction.png') });
 await page.waitForTimeout(1600);
-const connected = await page.getByText('Подключено', { exact: true }).isVisible();
-await page.screenshot({ path: path.join(outputDir, 'connected.png') });
+const tapConnected = await page.getByText('Подключено', { exact: true }).isVisible();
 
-// Dragging while connected must not disconnect.
-await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-await page.mouse.down();
-await page.mouse.move(box.x + box.width / 2 + 34, box.y + box.height / 2 + 18, { steps: 8 });
-await page.waitForTimeout(900);
-await page.mouse.up();
-await page.waitForTimeout(500);
-const dragStayedConnected = await page.getByText('Подключено', { exact: true }).isVisible();
-
-// A stationary press-and-hold charges, then disconnects.
+// A stationary hold charges, then disconnects.
 await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 await page.mouse.down();
 await page.waitForTimeout(520);
@@ -78,7 +77,7 @@ await page.screenshot({ path: path.join(outputDir, 'charging.png') });
 await page.waitForTimeout(420);
 await page.mouse.up();
 await page.waitForTimeout(1000);
-const disconnectedByHold = await page.getByText('Отключено', { exact: true }).isVisible();
+const holdDisconnected = await page.getByText('Отключено', { exact: true }).isVisible();
 
 await page.getByLabel('Меню подписки').click();
 await page.waitForTimeout(450);
@@ -136,10 +135,10 @@ await browser.close();
 console.log(
   JSON.stringify(
     {
-      dragStayedDisconnected,
-      connected,
-      dragStayedConnected,
-      disconnectedByHold,
+      dragHoldConnected,
+      dragHoldDisconnected,
+      tapConnected,
+      holdDisconnected,
       deleted,
       holdConnected,
       errors,
@@ -150,10 +149,10 @@ console.log(
 );
 
 if (
-  !dragStayedDisconnected ||
-  !connected ||
-  !dragStayedConnected ||
-  !disconnectedByHold ||
+  !dragHoldConnected ||
+  !dragHoldDisconnected ||
+  !tapConnected ||
+  !holdDisconnected ||
   !deleted ||
   !holdConnected ||
   errors.length > 0
