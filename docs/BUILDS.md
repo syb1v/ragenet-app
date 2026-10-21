@@ -66,6 +66,19 @@ the embedded `tunnel.appex` will remain unsigned and iOS will refuse to start
 the tunnel. See [`IOS_SIGNING.md`](IOS_SIGNING.md) for the full checklist, or use the
 [`Sign iOS IPA`](SIGNED_IOS.md) GitHub Actions workflow with two profiles.
 
+## GitHub Releases
+
+Every successful platform build publishes its files to a GitHub Release tagged
+`app-v<version>`:
+
+- manual `workflow_dispatch` runs create/update a **prerelease**;
+- `app-v*` tag builds update the same tag as a **stable release**;
+- assets are uploaded with `--clobber`, so rebuilding the same version replaces
+  the previous files instead of failing.
+
+The `Sign iOS IPA` workflow adds `RageNet-<version>-ios-signed.ipa` to the same
+release.
+
 ## Run a build
 
 ### Manual
@@ -81,8 +94,8 @@ Artifacts appear at the bottom of the run:
 ### Tag release
 
 ```bash
-git tag app-v0.1.19
-git push origin app-v0.1.19
+git tag app-v0.1.20
+git push origin app-v0.1.20
 ```
 
 Both workflows also run on `app-v*` tags. Artifacts are available on each run

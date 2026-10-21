@@ -3,7 +3,7 @@
     "name": "RageNet",
     "slug": "ragenet",
     "scheme": "ragenet",
-    "version": "0.1.19",
+    "version": "0.1.20",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -62,5 +62,6 @@
       ],
       "@bacons/apple-targets"
     ]
-  }
+  },
+  "version": "0.1.20"
 }

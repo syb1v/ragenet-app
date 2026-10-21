@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.20] - 2026-10-21
+
+### Added
+
+- Successful Android, iOS, signed iOS and desktop builds now publish their
+  artifacts to GitHub Releases. Manual runs create/update a prerelease
+  `app-v<version>`; `app-v*` tag builds publish a stable release.
+
 ### Added
 
 - `Sign iOS IPA` workflow that signs the app, `tunnel.appex` and nested

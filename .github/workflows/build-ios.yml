@@ -13,7 +13,7 @@ on:
       - app-v*
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   CI: '1'
@@ -119,9 +119,10 @@ jobs:
             "apps/mobile/ios/build/Build/Products/${CONFIGURATION}-iphoneos/RageNet.app" \
             artifacts/Payload/RageNet.app
           cd artifacts
-          zip -qry "RageNet-${APP_VERSION}-ios-unsigned.ipa" Payload
+          FILE="RageNet-${APP_VERSION}-ios-${CONFIGURATION}-unsigned.ipa"
+          zip -qry "$FILE" Payload
           rm -rf Payload
-          sha256sum *.ipa > SHA256SUMS-ios.txt
+          sha256sum "$FILE" > "SHA256SUMS-ios-${CONFIGURATION}.txt"
 
       - name: Upload IPA
         uses: actions/upload-artifact@v7
@@ -130,3 +131,11 @@ jobs:
           path: artifacts
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          chmod +x scripts/publish-release.sh
+          scripts/publish-release.sh "app-v${APP_VERSION}" "${APP_VERSION}" artifacts

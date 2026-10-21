@@ -7,7 +7,7 @@ on:
       - app-v*
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -75,3 +75,20 @@ jobs:
           name: ragenet-desktop-${{ matrix.name }}
           path: apps/desktop/src-tauri/target/**/release/bundle
           if-no-files-found: error
+
+      - name: Read app version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./apps/desktop/package.json').version")
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          mkdir -p release-assets
+          find apps/desktop/src-tauri/target -path '*/release/bundle/*' -type f -exec cp {} release-assets/ \;
+          chmod +x scripts/publish-release.sh
+          scripts/publish-release.sh "app-v${APP_VERSION}" "${APP_VERSION}" release-assets

@@ -13,7 +13,7 @@ on:
       - app-v*
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   CI: '1'
@@ -148,3 +148,11 @@ jobs:
           path: artifacts
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          chmod +x scripts/publish-release.sh
+          scripts/publish-release.sh "app-v${APP_VERSION}" "${APP_VERSION}" artifacts
