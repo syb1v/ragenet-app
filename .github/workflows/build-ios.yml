@@ -1,0 +1,94 @@
+name: Build iOS
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - app-v*
+
+permissions:
+  contents: read
+
+env:
+  CI: '1'
+  EXPO_NO_TELEMETRY: '1'
+
+jobs:
+  ios:
+    name: iOS unsigned IPA
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12.14.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Read app version
+        run: |
+          VERSION=$(node -p "require('./apps/mobile/app.json').expo.version")
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Building RageNet $VERSION"
+
+      - name: Generate iOS project
+        run: pnpm --filter @ragenet/mobile exec expo prebuild --platform ios --no-install
+
+      - name: Install CocoaPods
+        working-directory: apps/mobile/ios
+        run: |
+          pod --version
+          pod install --repo-update
+
+      - name: Build unsigned archive
+        working-directory: apps/mobile/ios
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace RageNet.xcworkspace \
+            -scheme RageNet \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            ONLY_ACTIVE_ARCH=NO \
+            | tee xcodebuild.log
+
+      - name: Package IPA
+        run: |
+          mkdir -p artifacts/Payload
+          ditto \
+            apps/mobile/ios/build/Build/Products/Release-iphoneos/RageNet.app \
+            artifacts/Payload/RageNet.app
+          cd artifacts
+          zip -qry "RageNet-${APP_VERSION}-ios-unsigned.ipa" Payload
+          rm -rf Payload
+          sha256sum *.ipa > SHA256SUMS-ios.txt
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: ragenet-ios-ipa
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 30

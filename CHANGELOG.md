@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-10-21
+
+### Changed
+
+- Split mobile CI into independent `Build Android` and `Build iOS` workflows.
+- Android first build is arm64-only to fit the hosted runner memory budget;
+  a universal arm64 + armeabi-v7a artifact is the next step.
+
 ## [0.1.5] - 2026-10-21
 
 ### Fixed

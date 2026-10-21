@@ -2,23 +2,28 @@
 
 ## Android APK
 
-Workflow: `.github/workflows/build-mobile.yml` → job **Android universal APK**
+Workflow: `.github/workflows/build-android.yml`
 
 What it does:
 
 1. Installs Java 21, Android SDK/NDK r29, pnpm.
 2. Runs `expo prebuild --platform android`.
 3. Builds `assembleRelease`.
-4. Uploads `RageNet-<version>-android-universal.apk` and `SHA256SUMS-android.txt`.
+4. Uploads `RageNet-<version>-android-arm64.apk` and `SHA256SUMS-android.txt`.
+
+The first workflow build is arm64-only to keep the runner stable and fast.
+A universal arm64 + armeabi-v7a APK is the next step; x86/x86_64 are emulator-only
+and can be added as separate artifacts.
 
 The release build uses the generated debug keystore because no production
-keystore is configured yet. The APK is **installable** and includes all ABIs
-from `reactNativeArchitectures` (`armeabi-v7a`, `arm64-v8a`, `x86`, `x86_64`).
+keystore is configured yet. The APK is **installable** and, in this first
+workflow, contains the `arm64-v8a` ABI only. This covers modern Android phones
+and keeps the GitHub runner below its memory limit.
 
 Install for testing:
 
 ```bash
-adb install -r RageNet-0.1.5-android-universal.apk
+adb install -r RageNet-<version>-android-arm64.apk
 ```
 
 For a production/self-signed release, add a keystore to GitHub Secrets and a
@@ -26,7 +31,7 @@ For a production/self-signed release, add a keystore to GitHub Secrets and a
 
 ## iOS unsigned IPA
 
-Workflow: same file → job **iOS unsigned IPA**
+Workflow: `.github/workflows/build-ios.yml`
 
 What it does:
 
@@ -50,7 +55,7 @@ in Phase 2.
 
 ### Manual
 
-GitHub → Actions → **Build mobile** → **Run workflow**.
+GitHub → Actions → **Build Android** or **Build iOS** → **Run workflow**.
 
 Artifacts appear at the bottom of the run:
 
@@ -64,8 +69,8 @@ git tag app-v0.1.5
 git push origin app-v0.1.5
 ```
 
-On tags, the `release` job also publishes a GitHub Release with the APK, IPA and
-`SHA256SUMS.txt`.
+Both workflows also run on `app-v*` tags. Artifacts are available on each run
+page; a combined GitHub Release job can be added after both pipelines are green.
 
 ## Desktop
 
