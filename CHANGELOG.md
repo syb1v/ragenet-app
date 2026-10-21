@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-10-21
+
+### Fixed
+
+- App and VPN module had different `minSdkVersion` values (24 vs 26). The app
+  now sets `minSdkVersion: 26` through `expo-build-properties`.
+
 ## [0.1.10] - 2026-10-21
 
 ### Fixed
