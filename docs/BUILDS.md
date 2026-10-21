@@ -44,7 +44,12 @@ What it does:
 The workflow does **not** need an Apple Developer account to produce the
 unsigned IPA. The IPA contains the main app and the Packet Tunnel extension
 (`Payload/RageNet.app/PlugIns/tunnel.appex`) but has no signature and cannot be
-installed as-is. Sign it with your `.p12` + `.mobileprovision` in a signing tool
+installed as-is.
+
+> **Use the `Release` IPA for installing.** A `Debug` IPA has no embedded
+> `main.jsbundle` and expects a running Metro packager; installing it without
+> Metro produces `No script URL provided`. The Release IPA contains
+> `Payload/RageNet.app/main.jsbundle`. Sign it with your `.p12` + `.mobileprovision` in a signing tool
 that also signs embedded app extensions (Sideloadly, ESign/GBox with extension
 support, or Xcode).
 
