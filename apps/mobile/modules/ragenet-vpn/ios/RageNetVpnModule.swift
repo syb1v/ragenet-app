@@ -116,7 +116,7 @@ public final class RageNetVpnModule: Module {
               ? "error"
               : message.localizedCaseInsensitiveContains("[warning]") ? "warn" : "info"
             output.append([
-              "time": Int64(modified * 1000) + index,
+              "time": Int64(modified * 1000) + Int64(index),
               "level": level,
               "message": message,
             ])
