@@ -118,6 +118,7 @@ export function ParticleSphere({
     clearTimers();
     stopHapticRamp();
     simulation.setCharge(0);
+    simulation.setVibration(0);
     onChargeProgress?.(null);
   };
 
@@ -127,8 +128,8 @@ export function ParticleSphere({
     clearTimers();
     stopHapticRamp();
     simulation.setCharge(1);
+    simulation.setVibration(1);
     onChargeProgress?.(1);
-    startHapticRamp(GATHER_MS + COMPRESS_HOLD_MS, 220);
 
     const startedAt = performance.now();
     let released = false;
@@ -149,6 +150,7 @@ export function ParticleSphere({
           released = true;
           stopHapticRamp();
           simulation.setPointer(null, null);
+          simulation.setVibration(0);
           simulation.setGather(0);
           simulation.triggerBurst();
           chargeHaptic('light');
@@ -186,6 +188,7 @@ export function ParticleSphere({
     burstStarted.current = false;
     simulation.setGather(0);
     simulation.setCharge(0);
+    simulation.setVibration(0);
     reportedCharge.current = 0;
     onChargeProgress?.(0);
     pressOrigin.current = { x: locationX / size, y: locationY / size };
@@ -197,6 +200,7 @@ export function ParticleSphere({
       if (!pressing.current) return;
       const progress = Math.min(1, (Date.now() - pressStartedAt.current) / HOLD_MS);
       simulation.setCharge(progress);
+      simulation.setVibration(progress ** 3);
       if (progress >= 1 || progress - reportedCharge.current >= 0.02) {
         reportedCharge.current = progress;
         onChargeProgress?.(progress);

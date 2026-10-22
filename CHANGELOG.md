@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.29] - 2026-10-22
+
+### Changed
+
+- Particle tremble now ramps in cubically, stays low through the first half of
+  the hold, and accelerates only near the release.
+- The tremble frequency is slower at rest and rises with the charge instead of
+  starting at full speed.
+- Vibration fades out during the burst rather than snapping off.
+- Particle dots, especially foreground dots, are slightly smaller; native
+  stroke widths were reduced to match.
+
 ## [0.1.28] - 2026-10-22
 
 ### Changed

@@ -62,6 +62,8 @@ export class ParticleSphereSimulation {
   private waveY = 0.5;
   private waveStrength = 0;
   private gatherLevel = 0;
+  private vibrationLevel = 0;
+  private vibrationTarget = 0;
 
   mode: ParticleMode = 'idle';
   charge = 0;
@@ -125,7 +127,7 @@ export class ParticleSphereSimulation {
       this.velocity[offset + 2] = (random() - 0.5) * 0.02;
 
       this.phase[index] = random() * TAU;
-      this.pointSize[index] = 1.1 + random() * 0.95;
+      this.pointSize[index] = 0.9 + random() * 0.72;
     }
   }
 
@@ -171,6 +173,11 @@ export class ParticleSphereSimulation {
   setGather(value: number): void {
     this.gatherLevel = clamp(value, 0, 1);
     this.gather = this.gatherLevel;
+  }
+
+  /** Visual tremble envelope. Kept separate from charge so it can ramp slowly. */
+  setVibration(value: number): void {
+    this.vibrationTarget = clamp(value, 0, 1.2);
   }
 
   /**
@@ -220,6 +227,7 @@ export class ParticleSphereSimulation {
     if (this.pointerEnergy < 0.001) this.pointerEnergy = 0;
 
     this.chargeLevel += (this.charge - this.chargeLevel) * Math.min(1, step * 8);
+    this.vibrationLevel += (this.vibrationTarget - this.vibrationLevel) * Math.min(1, step * 4);
 
     if (this.reactionActive) {
       this.reactionTime += step;
@@ -258,7 +266,7 @@ export class ParticleSphereSimulation {
     const damping = 7 + this.chargeLevel * 3 + this.gatherLevel * 2;
     const targetJitter =
       0.0025 +
-      this.chargeLevel * 0.018 +
+      this.vibrationLevel * 0.014 +
       (this.mode === 'connecting' ? 0.004 : 0) +
       (this.mode === 'connected' ? 0.0015 : 0) +
       this.impulse * 0.012;
@@ -440,15 +448,16 @@ export class ParticleSphereSimulation {
 
       // Charge feedback is a deliberate high-frequency tremble. It is applied
       // in screen space so it never destabilises the spring simulation.
-      if (this.chargeLevel > 0.001) {
-        const tremble = this.chargeLevel * 4.6;
+      if (this.vibrationLevel > 0.001) {
+        const tremble = this.vibrationLevel * 3.4;
         const phase = this.phase[index];
+        const speed = 0.48 + this.vibrationLevel * 0.82;
         const tremorX =
-          Math.sin(this.time * (22 + phase * 8) + phase * 19) +
-          Math.sin(this.time * (37 + phase * 5) + phase * 7) * 0.45;
+          Math.sin(this.time * (10 + phase * 4) * speed + phase * 19) +
+          Math.sin(this.time * (17 + phase * 3) * speed + phase * 7) * 0.35;
         const tremorY =
-          Math.cos(this.time * (19 + phase * 9) + phase * 23) +
-          Math.cos(this.time * (33 + phase * 6) + phase * 11) * 0.4;
+          Math.cos(this.time * (9 + phase * 5) * speed + phase * 23) +
+          Math.cos(this.time * (15 + phase * 4) * speed + phase * 11) * 0.3;
         screenX += tremorX * tremble;
         screenY += tremorY * tremble;
       }
@@ -457,7 +466,7 @@ export class ParticleSphereSimulation {
       projected[output] = screenX;
       projected[output + 1] = screenY;
       projected[output + 2] =
-        (0.55 + depth * 1.5 + this.chargeLevel * 0.1) *
+        (0.48 + depth * 1.25 + this.chargeLevel * 0.08) *
         (size / 300) *
         this.pointSize[index] *
         (1 + this.reaction * 0.18 + this.burstGlow * 0.2);
