@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.26] - 2026-10-22
+
+### Fixed
+
+- Desktop icons now use RGBA PNG/ICNS assets accepted by Tauri.
+- The Linux desktop build no longer installs the obsolete appindicator package
+  that conflicts with libayatana-appindicator.
+
 ## [0.1.25] - 2026-10-22
 
 ### Changed
