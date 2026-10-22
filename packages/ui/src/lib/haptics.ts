@@ -84,11 +84,20 @@ export function startHapticRamp(durationMs = 650, initialDelayMs = 260): () => v
     }
 
     if (elapsed >= initialDelayMs) {
-      // Selection ticks are much softer than repeated impacts. The interval
-      // tightens only slightly, so the hold feels like a rising pulse rather
-      // than a buzzing motor.
+      // Layer a selection tick with a light impact. This gives the hold more
+      // body on devices with a Taptic Engine / amplitude-capable vibrator while
+      // still avoiding a harsh buzz.
       softTick();
-      const interval = durationMs > 2000 ? 520 - progress * 300 : 190 - progress * 55;
+      if (progress > 0.2) {
+        run(() =>
+          Haptics.impactAsync(
+            progress > 0.72
+              ? Haptics.ImpactFeedbackStyle.Medium
+              : Haptics.ImpactFeedbackStyle.Light,
+          ),
+        );
+      }
+      const interval = durationMs > 2000 ? 600 - progress * 370 : 190 - progress * 55;
       rampTimer = setTimeout(pulse, interval);
     } else {
       rampTimer = setTimeout(pulse, initialDelayMs - elapsed);

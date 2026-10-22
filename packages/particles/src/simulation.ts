@@ -62,6 +62,7 @@ export class ParticleSphereSimulation {
   private waveY = 0.5;
   private waveStrength = 0;
   private gatherLevel = 0;
+  private burstScale = 1;
   private vibrationLevel = 0;
   private vibrationTarget = 0;
 
@@ -128,7 +129,7 @@ export class ParticleSphereSimulation {
       this.velocity[offset + 2] = (random() - 0.5) * 0.02;
 
       this.phase[index] = random() * TAU;
-      this.pointSize[index] = 0.82 + random() * 0.62;
+      this.pointSize[index] = 1.0 + random() * 0.7;
     }
   }
 
@@ -174,6 +175,11 @@ export class ParticleSphereSimulation {
   setGather(value: number): void {
     this.gatherLevel = clamp(value, 0, 1);
     this.gather = this.gatherLevel;
+  }
+
+  /** Visual expansion of the whole cloud during the release. */
+  setBurstScale(value: number): void {
+    this.burstScale = clamp(value, 0.5, 1.5);
   }
 
   /** Visual tremble envelope. Kept separate from charge so it can ramp slowly. */
@@ -372,8 +378,8 @@ export class ParticleSphereSimulation {
       const z = this.position[offset + 2];
       const perspective = 1 / (1 + z * 0.32);
 
-      let screenX = center + x * radius * perspective;
-      let screenY = center + y * radius * perspective;
+      let screenX = center + x * radius * perspective * this.burstScale;
+      let screenY = center + y * radius * perspective * this.burstScale;
 
       if (this.pointerStrength > 0.001) {
         const dx = screenX - pointerScreenX;
@@ -467,7 +473,7 @@ export class ParticleSphereSimulation {
       projected[output] = screenX;
       projected[output + 1] = screenY;
       projected[output + 2] =
-        (0.44 + depth * 1.15 + this.chargeLevel * 0.08) *
+        (0.5 + depth * 1.25 + this.chargeLevel * 0.08) *
         (size / 300) *
         this.pointSize[index] *
         (1 + this.reaction * 0.18 + this.burstGlow * 0.2);

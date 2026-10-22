@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-22
+
+### Changed
+
+- Fewer and larger sphere particles.
+- The release now expands through a visible 1.3× overshoot before settling
+  back to 1.0 instead of jumping from the compressed state to normal size.
+- Stronger layered hold haptics with light/medium impacts and a tighter pulse
+  ramp.
+
 ## [0.3.1] - 2026-10-22
 
 ### Fixed

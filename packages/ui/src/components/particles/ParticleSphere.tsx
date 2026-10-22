@@ -42,7 +42,7 @@ export function ParticleSphere({
   const { width } = useWindowDimensions();
   const size = explicitSize ?? Math.min(width * 0.7, 280);
   const hitRadius = size * 0.46;
-  const simulation = useMemo(() => new ParticleSphereSimulation({ count: 680 }), []);
+  const simulation = useMemo(() => new ParticleSphereSimulation({ count: 560 }), []);
 
   const pressing = useRef(false);
   const triggeredByHold = useRef(false);
@@ -152,9 +152,24 @@ export function ParticleSphere({
           simulation.setPointer(null, null);
           simulation.setVibration(0);
           simulation.setGather(0);
+          simulation.setBurstScale(1);
           simulation.triggerBurst();
-          chargeHaptic('light');
+          chargeHaptic('medium');
         }
+
+        // Hold the release: the compressed cloud expands through 1.0 to 1.3,
+        // then settles back to the resting radius. This is deliberately a
+        // visible pulse, not a snap from the compressed state to normal size.
+        if (burstElapsed < 280) {
+          simulation.setBurstScale(1);
+        } else if (burstElapsed < 560) {
+          const p = (burstElapsed - 280) / 280;
+          simulation.setBurstScale(1 + 0.3 * (1 - (1 - p) ** 3));
+        } else {
+          const p = Math.min(1, (burstElapsed - 560) / (BURST_MS - 560));
+          simulation.setBurstScale(1.3 - 0.3 * (p * p * (3 - 2 * p)));
+        }
+
         if (!connected && burstElapsed >= BURST_CONNECT_MS) {
           connected = true;
           onToggle();
@@ -162,6 +177,7 @@ export function ParticleSphere({
         if (burstElapsed >= BURST_MS) {
           simulation.setCharge(0);
           simulation.setGather(0);
+          simulation.setBurstScale(1);
           burstStarted.current = false;
           burstFrame.current = null;
           onChargeProgress?.(null);
@@ -200,7 +216,7 @@ export function ParticleSphere({
       if (!pressing.current) return;
       const progress = Math.min(1, (Date.now() - pressStartedAt.current) / HOLD_MS);
       simulation.setCharge(progress);
-      simulation.setVibration(0.28 + 0.72 * progress ** 1.7);
+      simulation.setVibration(0.4 + 0.6 * progress ** 1.55);
       if (progress >= 1 || progress - reportedCharge.current >= 0.02) {
         reportedCharge.current = progress;
         onChargeProgress?.(progress);

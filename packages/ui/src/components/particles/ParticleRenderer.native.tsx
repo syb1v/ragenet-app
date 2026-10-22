@@ -69,7 +69,7 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
             Math.round(current[1] + boost),
           )}, ${Math.min(255, Math.round(current[2] + boost))})`,
         );
-        setStrokeWidth(1.2 + simulation.charge * 0.3 + simulation.reaction * 0.15);
+        setStrokeWidth(1.35 + simulation.charge * 0.35 + simulation.reaction * 0.15);
         const wave = simulation.getWave();
         setWaveRing(
           wave
