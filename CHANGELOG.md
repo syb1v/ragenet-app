@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.8] - 2026-10-22
+
+### Added
+
+- Native continuous particle haptics. Every trembling particle contributes
+  energy, density and rate to the phone vibration; iOS uses Core Haptics and
+  Android uses an amplitude waveform instead of the old fixed hold ramp.
+
 ## [0.3.7] - 2026-10-22
 
 ### Fixed

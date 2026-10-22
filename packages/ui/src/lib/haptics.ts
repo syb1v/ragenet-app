@@ -1,5 +1,9 @@
+import { createParticleHaptics } from '@ragenet/vpn';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
+
+/** Native continuous particle haptics; no-op on web or unsupported devices. */
+export const particleHaptics = createParticleHaptics();
 
 const enabled = Platform.OS === 'ios' || Platform.OS === 'android';
 

@@ -14,6 +14,25 @@ describe('ParticleSphereSimulation', () => {
     expect(Array.from(pa)).toEqual(Array.from(pb));
   });
 
+  it('reports every trembling particle in the haptic snapshot', () => {
+    const simulation = new ParticleSphereSimulation({ count: 128, seed: 41 });
+    expect(simulation.getHapticSnapshot()).toEqual({
+      energy: 0,
+      density: 0,
+      frequency: 0,
+      activeCount: 0,
+    });
+
+    simulation.setVibration(1);
+    for (let i = 0; i < 180; i += 1) simulation.update(1 / 60);
+    const snapshot = simulation.getHapticSnapshot();
+
+    expect(snapshot.activeCount).toBe(128);
+    expect(snapshot.density).toBe(1);
+    expect(snapshot.energy).toBeGreaterThan(0.9);
+    expect(snapshot.frequency).toBeGreaterThan(0);
+  });
+
   it('stays finite under charge, impulse and drag', () => {
     const simulation = new ParticleSphereSimulation({ count: 128, seed: 11 });
     simulation.setPointer(0.8, 0.2);

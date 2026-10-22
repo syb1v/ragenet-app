@@ -5,6 +5,16 @@ export interface ParticleSphereOptions {
   seed?: number;
 }
 
+export interface ParticleHapticSnapshot {
+  /** Share of the maximum per-particle tremor energy. */
+  energy: number;
+  /** Fraction of particles currently trembling. */
+  density: number;
+  /** Normalised average tremor rate. */
+  frequency: number;
+  activeCount: number;
+}
+
 const TAU = Math.PI * 2;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
@@ -364,6 +374,45 @@ export class ParticleSphereSimulation {
 
     this.impulse *= Math.exp(-3.4 * step);
     if (this.impulse < 0.001) this.impulse = 0;
+  }
+
+  /**
+   * Aggregate every active particle into a haptic snapshot. A particle only
+   * contributes after it passes its own tremor onset, so the phone starts
+   * buzzing from the particles that are visibly shaking at this moment.
+   */
+  getHapticSnapshot(): ParticleHapticSnapshot {
+    let activeCount = 0;
+    let weightedEnergy = 0;
+    let weightedSpeed = 0;
+    let totalGain = 0;
+
+    for (let index = 0; index < this.count; index += 1) {
+      const onset = this.tremorOnset[index];
+      const localVibration =
+        this.vibrationLevel <= onset
+          ? 0
+          : clamp((this.vibrationLevel - onset) / Math.max(0.18, 1 - onset), 0, 1);
+      if (localVibration <= 0.02) continue;
+
+      const gain = this.tremorScale[index];
+      activeCount += 1;
+      weightedEnergy += localVibration * gain;
+      weightedSpeed += localVibration * gain * this.tremorSpeed[index];
+      totalGain += gain;
+    }
+
+    if (activeCount === 0 || totalGain <= 0) {
+      return { energy: 0, density: 0, frequency: 0, activeCount: 0 };
+    }
+
+    const averageSpeed = weightedSpeed / (weightedEnergy || 1);
+    return {
+      energy: clamp(weightedEnergy / totalGain, 0, 1),
+      density: activeCount / this.count,
+      frequency: clamp((averageSpeed - 0.68) / 0.72, 0, 1),
+      activeCount,
+    };
   }
 
   /** Current wave data for a subtle one-front renderer overlay. */

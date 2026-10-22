@@ -12,8 +12,7 @@ import {
 import {
   chargeHaptic,
   dragHaptic,
-  startHapticRamp,
-  stopHapticRamp,
+  particleHaptics,
   tapHaptic,
   tickHaptic,
 } from '../../lib/haptics';
@@ -53,6 +52,7 @@ export function ParticleSphere({
   const lastWaveAt = useRef(0);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chargeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hapticTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
   const pressOrigin = useRef({ x: 0.5, y: 0.5 });
@@ -103,10 +103,27 @@ export function ParticleSphere({
     }
   };
 
+  const stopParticleHapticStream = () => {
+    if (hapticTimer.current) {
+      clearInterval(hapticTimer.current);
+      hapticTimer.current = null;
+    }
+    particleHaptics.stop();
+  };
+
+  const startParticleHapticStream = () => {
+    if (!particleHaptics.available) return;
+    particleHaptics.start();
+    if (hapticTimer.current) return;
+    hapticTimer.current = setInterval(() => {
+      particleHaptics.update(simulation.getHapticSnapshot());
+    }, 32);
+  };
+
   useEffect(
     () => () => {
       clearTimers();
-      stopHapticRamp();
+      stopParticleHapticStream();
       if (burstFrame.current != null) cancelAnimationFrame(burstFrame.current);
     },
     [],
@@ -120,7 +137,7 @@ export function ParticleSphere({
 
   const resetCharge = () => {
     clearTimers();
-    stopHapticRamp();
+    stopParticleHapticStream();
     simulation.setCharge(0);
     simulation.setVibration(0);
     onChargeProgress?.(null);
@@ -130,7 +147,6 @@ export function ParticleSphere({
     if (burstStarted.current) return;
     burstStarted.current = true;
     clearTimers();
-    stopHapticRamp();
     simulation.setCharge(1);
     simulation.setVibration(1);
     onChargeProgress?.(1);
@@ -152,7 +168,7 @@ export function ParticleSphere({
         const burstElapsed = elapsed - GATHER_MS - COMPRESS_HOLD_MS;
         if (!released) {
           released = true;
-          stopHapticRamp();
+          stopParticleHapticStream();
           simulation.clearPointer();
           simulation.setVibration(0);
           simulation.setGather(0);
@@ -184,6 +200,7 @@ export function ParticleSphere({
           simulation.setBurstScale(1);
           burstStarted.current = false;
           burstFrame.current = null;
+          stopParticleHapticStream();
           onChargeProgress?.(null);
           return;
         }
@@ -227,8 +244,8 @@ export function ParticleSphere({
     pressOrigin.current = { x: locationX / size, y: locationY / size };
     updatePointer(event);
     tickHaptic();
+    startParticleHapticStream();
 
-    startHapticRamp(HOLD_MS, 260);
     chargeTimer.current = setInterval(() => {
       if (!pressing.current) return;
       const progress = Math.min(1, (Date.now() - stationaryStartedAt.current) / HOLD_MS);
@@ -282,8 +299,6 @@ export function ParticleSphere({
         simulation.setVibration(0);
         reportedCharge.current = 0;
         onChargeProgress?.(0);
-        stopHapticRamp();
-        startHapticRamp(HOLD_MS, 260);
         armHold();
       }
 
@@ -304,6 +319,7 @@ export function ParticleSphere({
     pressing.current = false;
     if (wasTriggered) {
       clearTimers();
+      stopParticleHapticStream();
       simulation.clearPointer();
       return;
     }

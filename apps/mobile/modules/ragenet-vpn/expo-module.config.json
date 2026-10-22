@@ -1,9 +1,9 @@
 {
   "platforms": ["android", "ios"],
   "android": {
-    "modules": ["net.ragenet.vpn.RageNetVpnModule"]
+    "modules": ["net.ragenet.vpn.RageNetVpnModule", "net.ragenet.vpn.RageNetHapticsModule"]
   },
   "ios": {
-    "modules": ["RageNetVpnModule"]
+    "modules": ["RageNetVpnModule", "RageNetHapticsModule"]
   }
 }

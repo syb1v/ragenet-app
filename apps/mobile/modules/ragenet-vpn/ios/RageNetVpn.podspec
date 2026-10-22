@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name = 'RageNetVpn'
-  s.version = '0.3.7'
+  s.version = '0.3.8'
   s.summary = 'RageNet native VPN bridge'
   s.license = { :type => 'AGPL-3.0' }
   s.author = { 'RageNet' => 'https://github.com/syb1v/ragenet-app' }
@@ -10,6 +10,6 @@ Pod::Spec.new do |s|
   s.source_files = '**/*.{h,m,mm,swift}'
   s.swift_version = '5.9'
   s.dependency 'ExpoModulesCore'
-  s.frameworks = 'NetworkExtension'
+  s.frameworks = 'NetworkExtension', 'CoreHaptics'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
 end
