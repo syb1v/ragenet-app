@@ -200,7 +200,7 @@ export function ParticleSphere({
       if (!pressing.current) return;
       const progress = Math.min(1, (Date.now() - pressStartedAt.current) / HOLD_MS);
       simulation.setCharge(progress);
-      simulation.setVibration(progress ** 3);
+      simulation.setVibration(0.28 + 0.72 * progress ** 1.7);
       if (progress >= 1 || progress - reportedCharge.current >= 0.02) {
         reportedCharge.current = progress;
         onChargeProgress?.(progress);

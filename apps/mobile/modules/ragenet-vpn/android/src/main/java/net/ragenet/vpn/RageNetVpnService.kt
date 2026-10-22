@@ -14,6 +14,7 @@ import androidx.core.app.ServiceCompat
 import libXray.DialerController
 import libXray.LibXray
 import org.json.JSONObject
+import java.io.File
 import java.util.concurrent.Executors
 
 class RageNetVpnService : VpnService() {
@@ -89,13 +90,6 @@ class RageNetVpnService : VpnService() {
         .addDnsServer("8.8.8.8")
         .addDnsServer("2606:4700:4700::1111")
 
-      try {
-        builder.addDisallowedApplication(packageName)
-      } catch (error: Exception) {
-        Log.w(TAG, "Could not exclude RageNet from the tunnel", error)
-        VpnLogStore.append("warn", "Could not exclude RageNet from the tunnel")
-      }
-
       val descriptor = builder.establish()
         ?: throw IllegalStateException("VpnService.establish() returned null")
       tunnel = descriptor
@@ -108,6 +102,11 @@ class RageNetVpnService : VpnService() {
       LibXray.setDNS(dialer, "1.1.1.1:53")
 
       val root = JSONObject(configJson)
+      val log = root.optJSONObject("log") ?: JSONObject()
+      if (!log.has("error")) {
+        log.put("error", File(filesDir, "xray.log").absolutePath)
+        root.put("log", log)
+      }
       val env = root.optJSONObject("env") ?: JSONObject()
       env.put("xray.tun.fd", descriptor.fd.toString())
       root.put("env", env)

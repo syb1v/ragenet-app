@@ -101,19 +101,37 @@ public final class RageNetVpnModule: Module {
           forSecurityApplicationGroupIdentifier: "group.net.ragenet.vpn"
         )
       else { return [] }
-      let logURL = directory.appendingPathComponent("tunnel.log")
-      guard let contents = try? String(contentsOf: logURL, encoding: .utf8) else { return [] }
-      return contents
-        .split(separator: "\n")
-        .compactMap { line -> [String: Any]? in
-          let parts = line.split(separator: "|", maxSplits: 2, omittingEmptySubsequences: false)
-          guard parts.count == 3, let timestamp = Int64(parts[0]) else { return nil }
-          return [
-            "time": timestamp,
-            "level": String(parts[1]),
-            "message": String(parts[2]),
-          ]
+      var output: [[String: Any]] = []
+      for (name, isCore) in [("tunnel.log", false), ("xray.log", true)] {
+        let logURL = directory.appendingPathComponent(name)
+        guard let contents = try? String(contentsOf: logURL, encoding: .utf8) else { continue }
+        let modified = (try? logURL.resourceValues(forKeys: [.contentModificationDateKey])
+          .contentModificationDate?.timeIntervalSince1970) ?? Date().timeIntervalSince1970
+        let lines = contents.split(separator: "\n")
+        for (index, line) in lines.enumerated() {
+          if isCore {
+            let message = String(line).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !message.isEmpty else { continue }
+            let level = message.localizedCaseInsensitiveContains("[error]")
+              ? "error"
+              : message.localizedCaseInsensitiveContains("[warning]") ? "warn" : "info"
+            output.append([
+              "time": Int64(modified * 1000) + index,
+              "level": level,
+              "message": message,
+            ])
+          } else {
+            let parts = line.split(separator: "|", maxSplits: 2, omittingEmptySubsequences: false)
+            guard parts.count == 3, let timestamp = Int64(parts[0]) else { continue }
+            output.append([
+              "time": timestamp,
+              "level": String(parts[1]),
+              "message": String(parts[2]),
+            ])
+          }
         }
+      }
+      return output
     }
 
     Function("clearLogs") { () -> Bool in
@@ -122,8 +140,9 @@ public final class RageNetVpnModule: Module {
           forSecurityApplicationGroupIdentifier: "group.net.ragenet.vpn"
         )
       else { return false }
-      let logURL = directory.appendingPathComponent("tunnel.log")
-      try? FileManager.default.removeItem(at: logURL)
+      for name in ["tunnel.log", "xray.log"] {
+        try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
+      }
       return true
     }
 

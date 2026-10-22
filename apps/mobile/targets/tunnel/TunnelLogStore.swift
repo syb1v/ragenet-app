@@ -5,11 +5,17 @@ import Foundation
 enum TunnelLogStore {
   static let appGroup = "group.net.ragenet.vpn"
   static let fileName = "tunnel.log"
+  static let xrayFileName = "xray.log"
   private static let lock = NSLock()
 
   static func info(_ message: String) { append("info", message) }
   static func warn(_ message: String) { append("warn", message) }
   static func error(_ message: String) { append("error", message) }
+
+  static var xrayLogURL: URL? {
+    FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)?
+      .appendingPathComponent(xrayFileName)
+  }
 
   private static func append(_ level: String, _ message: String) {
     lock.lock()

@@ -13,6 +13,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Toast } from './Toast';
 
 interface BottomSheetProps {
   visible: boolean;
@@ -124,15 +125,17 @@ export function BottomSheet({ visible, onClose, children, header, style }: Botto
               },
               style,
             ]}
-            {...panResponder.panHandlers}
             testID="bottom-sheet"
           >
-            <View style={styles.handle} />
+            <View style={styles.dragZone} {...panResponder.panHandlers}>
+              <View style={styles.handle} />
+            </View>
             {header}
             {children}
           </Animated.View>
         </KeyboardAvoidingView>
       </View>
+      <Toast />
     </Modal>
   );
 }
@@ -166,12 +169,16 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     ...shadows.sheet,
   },
+  dragZone: {
+    alignItems: 'center',
+    height: 24,
+    justifyContent: 'center',
+    marginTop: -4,
+  },
   handle: {
-    alignSelf: 'center',
     backgroundColor: colors.white16,
     borderRadius: radii.pill,
     height: 4,
-    marginBottom: 10,
     width: 38,
   },
 });

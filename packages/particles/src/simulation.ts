@@ -267,7 +267,7 @@ export class ParticleSphereSimulation {
     const damping = 7 + this.chargeLevel * 3 + this.gatherLevel * 2;
     const targetJitter =
       0.0025 +
-      this.vibrationLevel * 0.014 +
+      this.vibrationLevel * 0.02 +
       (this.mode === 'connecting' ? 0.004 : 0) +
       (this.mode === 'connected' ? 0.0015 : 0) +
       this.impulse * 0.012;
@@ -450,9 +450,9 @@ export class ParticleSphereSimulation {
       // Charge feedback is a deliberate high-frequency tremble. It is applied
       // in screen space so it never destabilises the spring simulation.
       if (this.vibrationLevel > 0.001) {
-        const tremble = this.vibrationLevel * 3.4;
+        const tremble = this.vibrationLevel * 5.2;
         const phase = this.phase[index];
-        const speed = 0.48 + this.vibrationLevel * 0.82;
+        const speed = 0.55 + this.vibrationLevel * 0.95;
         const tremorX =
           Math.sin(this.time * (10 + phase * 4) * speed + phase * 19) +
           Math.sin(this.time * (17 + phase * 3) * speed + phase * 7) * 0.35;

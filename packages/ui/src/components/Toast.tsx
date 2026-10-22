@@ -24,6 +24,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     zIndex: 100,
+    elevation: 100,
   },
   toast: {
     backgroundColor: 'rgba(21, 30, 47, 0.98)',

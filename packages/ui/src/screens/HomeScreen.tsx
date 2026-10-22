@@ -291,6 +291,7 @@ const styles = StyleSheet.create({
   },
   coreArea: {
     alignItems: 'center',
+    flexGrow: 1,
     justifyContent: 'center',
     minHeight: 300,
     paddingBottom: 2,
@@ -365,7 +366,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   mobileGap: {
-    height: 36,
+    height: 12,
   },
   desktopRow: {
     alignItems: 'stretch',
@@ -381,18 +382,16 @@ const styles = StyleSheet.create({
   },
   desktopInfo: {
     flex: 1,
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
     marginTop: 0,
     maxWidth: 380,
   },
   info: {
-    flexGrow: 1,
     gap: 9,
-    marginTop: 12,
+    marginTop: 0,
   },
   bottomSpacer: {
-    flexGrow: 1,
-    minHeight: 14,
+    height: 14,
   },
   subscriptionRow: {
     alignItems: 'center',

@@ -142,6 +142,11 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
     var environment = config["env"] as? [String: Any] ?? [:]
     environment["xray.tun.fd"] = String(fd)
     config["env"] = environment
+    if let xrayLog = TunnelLogStore.xrayLogURL?.path {
+      var log = config["log"] as? [String: Any] ?? [:]
+      if log["error"] == nil { log["error"] = xrayLog }
+      config["log"] = log
+    }
 
     guard
       let patched = try? JSONSerialization.data(withJSONObject: config),

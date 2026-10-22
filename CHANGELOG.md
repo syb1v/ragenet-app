@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-22
+
+### Fixed
+
+- Location sheet scrolling is no longer blocked by swipe-to-dismiss; the drag
+  area is limited to the handle.
+- Ping resets previous values, shows pending rows and no longer tears down the
+  active connection.
+- HTTP latency uses `https://www.gstatic.com/generate_204` through the active
+  tunnel, with TCP fallback.
+- Copy actions now show a toast above sheets and menus.
+- Core Xray logs are collected alongside tunnel lifecycle logs.
+- Location switching waits for the old tunnel to stop before starting the new
+  one.
+- Home cards are anchored toward the bottom while the sphere/status stay
+  centered above them.
+
 ## [0.3.0] - 2026-10-22
 
 ### Added

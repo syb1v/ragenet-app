@@ -53,12 +53,13 @@ export function SubscriptionMenu() {
   if (!anchor || !subscription) return null;
 
   const copy = async () => {
-    closeMenu();
     try {
       await Clipboard.setStringAsync(subscription.url);
       showToast('Ссылка скопирована');
+      setTimeout(closeMenu, 80);
     } catch {
       showToast('Не удалось скопировать ссылку');
+      closeMenu();
     }
   };
 

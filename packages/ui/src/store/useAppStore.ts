@@ -109,7 +109,7 @@ export const DEVICE = {
   os: platformName(),
   osVersion: Platform.Version?.toString() ?? 'unknown',
   model: deviceModel(),
-  appVersion: Constants.expoConfig?.version ?? '0.3.0',
+  appVersion: Constants.expoConfig?.version ?? '0.3.1',
 };
 
 let vpnBridge: VpnBridge | null = null;
@@ -120,6 +120,27 @@ let suppressVpnStatus = false;
 function getVpnBridge(): VpnBridge {
   if (!vpnBridge) vpnBridge = createVpnBridge();
   return vpnBridge;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForVpnState(
+  bridge: VpnBridge,
+  expected: string,
+  timeoutMs = 1800,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const status = await bridge.getStatus();
+      if (status.state === expected) return;
+    } catch {
+      // Keep polling until the deadline.
+    }
+    await sleep(100);
+  }
 }
 
 async function probeLatency(
@@ -176,22 +197,14 @@ async function pingTargets(
 ): Promise<void> {
   if (targets.length === 0 || get().isPinging || get().isSwitching) return;
   const bridge = getVpnBridge();
-  const wasConnected = get().vpnStatus.state === 'connected';
-  let paused = false;
+  const targetIds = new Set(targets.map((server) => server.id));
 
-  set({ isPinging: true });
-  if (wasConnected) {
-    suppressVpnStatus = true;
-    try {
-      await bridge.stop();
-      paused = true;
-    } catch (error) {
-      get().addLog(
-        error instanceof Error ? error.message : 'Не удалось приостановить туннель для пинга',
-        'warn',
-      );
-    }
-  }
+  set({
+    isPinging: true,
+    servers: get().servers.map((server) =>
+      targetIds.has(server.id) ? { ...server, latencyMs: undefined } : server,
+    ),
+  });
 
   try {
     const measured = await Promise.all(
@@ -207,44 +220,24 @@ async function pingTargets(
         return { ...server, latencyMs: latency ?? undefined };
       }),
     );
-
-    if (targets.length > 1) {
-      const subscription = get().subscription;
-      set({
-        servers: measured,
-        subscription: subscription ? { ...subscription, servers: measured } : null,
-      });
-    }
+    const subscription = get().subscription;
+    const nextServers = get().servers.map((server) => {
+      const result = measured.find((entry) => entry.id === server.id);
+      return result ?? server;
+    });
+    set({
+      servers: nextServers,
+      subscription: subscription ? { ...subscription, servers: nextServers } : null,
+    });
   } finally {
-    if (paused) {
-      try {
-        const current =
-          get().servers.find((server) => server.id === get().selectedServerId) ?? get().servers[0];
-        if (current) {
-          const config = buildXrayConfig(get().servers, {
-            selectedServerId: current.id,
-            routingMode: get().settings.routingMode,
-            logLevel: get().settings.logLevel,
-          });
-          await bridge.start({
-            config: JSON.stringify(config),
-            killSwitch: get().settings.killSwitch,
-          });
-          const status = await bridge.getStatus();
-          set({ vpnStatus: status });
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Не удалось восстановить туннель';
-        get().addLog(message, 'error');
-        get().showToast(message);
-      }
-    }
-    suppressVpnStatus = false;
     set({ isPinging: false });
   }
 
-  const answered = get().servers.filter((server) => server.latencyMs != null).length;
-  get().addLog(`Пинг завершён · ${answered}/${get().servers.length} серверов`);
+  const answered = targets.filter((server) => {
+    const current = get().servers.find((entry) => entry.id === server.id);
+    return current?.latencyMs != null;
+  }).length;
+  get().addLog(`Пинг завершён · ${answered}/${targets.length} локаций`);
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -399,6 +392,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       suppressVpnStatus = true;
       try {
         await bridge.stop();
+        await waitForVpnState(bridge, 'disconnected');
         const config = buildXrayConfig(get().servers, {
           selectedServerId: id,
           routingMode: get().settings.routingMode,

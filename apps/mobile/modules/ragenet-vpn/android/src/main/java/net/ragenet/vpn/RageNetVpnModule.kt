@@ -7,6 +7,7 @@ import android.os.Looper
 import androidx.core.content.ContextCompat
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.io.File
 import java.net.InetSocketAddress
 import java.net.Socket
 
@@ -87,17 +88,43 @@ class RageNetVpnModule : Module() {
     }
 
     Function("getLogs") {
-      VpnLogStore.snapshot().map { entry ->
+      val lifecycle = VpnLogStore.snapshot().map { entry ->
         mapOf(
           "time" to entry.time,
           "level" to entry.level,
           "message" to entry.message,
         )
       }
+      val context = appContext.reactContext
+      val coreFile = context?.let { File(it.filesDir, "xray.log") }
+      val core = if (coreFile?.exists() == true) {
+        val modified = coreFile.lastModified()
+        coreFile.readLines().takeLast(300).mapIndexed { index, line ->
+          val normalized = line.trim()
+          val level = when {
+            normalized.contains("[Error]", ignoreCase = true) -> "error"
+            normalized.contains("[Warning]", ignoreCase = true) -> "warn"
+            else -> "info"
+          }
+          mapOf(
+            "time" to modified + index,
+            "level" to level,
+            "message" to normalized,
+          )
+        }
+      } else {
+        emptyList<Map<String, Any>>()
+      }
+      lifecycle + core
     }
 
     Function("clearLogs") {
       VpnLogStore.clear()
+      try {
+        appContext.reactContext?.let { File(it.filesDir, "xray.log").delete() }
+      } catch (_: Exception) {
+        // Best effort.
+      }
       true
     }
 

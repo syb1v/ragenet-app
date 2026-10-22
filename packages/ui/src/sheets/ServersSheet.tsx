@@ -78,8 +78,13 @@ export function ServersSheet() {
                 </Text>
                 <Text style={styles.protocol}>{server.protocol.toUpperCase()}</Text>
               </View>
-              <Text style={[styles.ping, { color: pingColor }]}>
-                {ping == null ? '—' : `${ping} мс`}
+              <Text
+                style={[
+                  styles.ping,
+                  { color: pingColor, opacity: isPinging && ping == null ? 0.42 : 1 },
+                ]}
+              >
+                {isPinging && ping == null ? '...' : ping == null ? '—' : `${ping} мс`}
               </Text>
             </Pressable>
           );
