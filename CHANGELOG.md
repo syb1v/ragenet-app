@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.24] - 2026-10-22
+
+### Added
+
+- Liquid tap wave on the RageNet sphere.
+- Eight-second hold charge with pointer repulsion, increasing particle
+  tremble, a compress/burst transition and a soft progressive haptic ramp.
+- Connected-state timer and a quieter lavender connected status.
+
 ## [0.1.23] - 2026-10-22
 
 ### Changed

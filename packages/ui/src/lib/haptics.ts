@@ -88,7 +88,7 @@ export function startHapticRamp(durationMs = 650, initialDelayMs = 260): () => v
       // tightens only slightly, so the hold feels like a rising pulse rather
       // than a buzzing motor.
       softTick();
-      const interval = 190 - progress * 55;
+      const interval = durationMs > 2000 ? 520 - progress * 300 : 190 - progress * 55;
       rampTimer = setTimeout(pulse, interval);
     } else {
       rampTimer = setTimeout(pulse, initialDelayMs - elapsed);

@@ -1,6 +1,6 @@
 import type { ParticleMode, ParticleSphereSimulation } from '@ragenet/particles';
 import { useEffect, useRef, useState } from 'react';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
 
 interface ParticleRendererProps {
   simulation: ParticleSphereSimulation;
@@ -8,10 +8,11 @@ interface ParticleRendererProps {
   mode: ParticleMode;
 }
 
-function colorForMode(mode: ParticleMode): [number, number, number] {
-  if (mode === 'connected') return [144, 156, 255];
+function colorForMode(mode: ParticleMode, charge: number): [number, number, number] {
+  if (mode === 'connected') return [196, 202, 240];
+  if (charge > 0.01) return [178, 157, 255];
   if (mode === 'connecting') return [177, 157, 255];
-  return [118, 137, 166];
+  return [174, 178, 187];
 }
 
 /**
@@ -47,7 +48,7 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
         }
         setPath(commands.join(''));
 
-        const target = colorForMode(mode);
+        const target = colorForMode(mode, simulation.charge);
         const current = colorRef.current;
         const blend = Math.min(1, dt * 4);
         for (let channel = 0; channel < 3; channel += 1) {
@@ -60,7 +61,7 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
             Math.round(current[1] + boost),
           )}, ${Math.min(255, Math.round(current[2] + boost))})`,
         );
-        setStrokeWidth(1.2 + simulation.reaction * 0.25);
+        setStrokeWidth(1.05 + simulation.charge * 0.45 + simulation.reaction * 0.2);
       }
 
       animation = requestAnimationFrame(loop);
@@ -70,8 +71,18 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
     return () => cancelAnimationFrame(animation);
   }, [simulation, size]);
 
+  const glow = mode === 'connected' ? 0.24 : 0.03 + simulation.charge * 0.18;
+
   return (
     <Svg width={size} height={size}>
+      <Defs>
+        <RadialGradient id="particleGlow" cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor="#9b8bff" stopOpacity={glow} />
+          <Stop offset="0.5" stopColor="#6457cc" stopOpacity={glow * 0.22} />
+          <Stop offset="1" stopColor="#0d0b18" stopOpacity="0" />
+        </RadialGradient>
+      </Defs>
+      <Circle cx={size / 2} cy={size / 2} r={size * 0.48} fill="url(#particleGlow)" />
       <Path d={path} stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" fill="none" />
     </Svg>
   );

@@ -57,6 +57,10 @@ export class ParticleSphereSimulation {
   private reactionTime = 0;
   private reactionStrength = 0;
   private reactionActive = false;
+  private waveAge = 0;
+  private waveX = 0.5;
+  private waveY = 0.5;
+  private waveStrength = 0;
 
   mode: ParticleMode = 'idle';
   charge = 0;
@@ -152,6 +156,14 @@ export class ParticleSphereSimulation {
     this.charge = clamp(value, 0, 1);
   }
 
+  /** Start a liquid ripple from a normalized point on the sphere. */
+  triggerWave(x: number, y: number, strength = 1): void {
+    this.waveX = clamp(x, 0, 1);
+    this.waveY = clamp(y, 0, 1);
+    this.waveAge = 0;
+    this.waveStrength = clamp(strength, 0, 1.4);
+  }
+
   setMode(mode: ParticleMode): void {
     this.mode = mode;
   }
@@ -159,6 +171,12 @@ export class ParticleSphereSimulation {
   update(dt: number): void {
     const step = clamp(dt, 0, 0.05);
     this.time += step;
+    if (this.waveStrength > 0) {
+      this.waveAge += step;
+      if (this.waveAge >= 0.8) {
+        this.waveStrength = 0;
+      }
+    }
     this.pointerStrength +=
       (this.pointerTargetStrength - this.pointerStrength) * Math.min(1, step * 14);
     this.pointerEnergy *= Math.exp(-5 * step);
@@ -323,6 +341,20 @@ export class ParticleSphereSimulation {
           screenX += Math.sin(this.time * 52 + index * 2.3) * shiver;
           screenY += Math.cos(this.time * 47 + index * 1.9) * shiver;
         }
+      }
+
+      if (this.waveStrength > 0) {
+        const waveOriginX = center + (this.waveX * 2 - 1) * radius;
+        const waveOriginY = center + (this.waveY * 2 - 1) * radius;
+        const dx = screenX - waveOriginX;
+        const dy = screenY - waveOriginY;
+        const distance = Math.max(0.001, Math.hypot(dx, dy));
+        const envelope = Math.exp(-this.waveAge * 3.2) * (1 - this.waveAge / 0.8);
+        const front = this.waveAge * size * 0.64;
+        const displacement =
+          Math.sin((distance - front) * 0.16) * envelope * size * 0.025 * this.waveStrength;
+        screenX += (dx / distance) * displacement;
+        screenY += (dy / distance) * displacement;
       }
 
       const depth = clamp((z + 1) / 2, 0, 1);

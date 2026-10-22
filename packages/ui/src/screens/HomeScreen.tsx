@@ -11,7 +11,7 @@ import {
   Send,
   Settings,
 } from 'lucide-react-native';
-import { useEffect, useRef, type ComponentRef } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -56,6 +56,7 @@ export function HomeScreen() {
 
   const previousState = useRef(vpnStatus.state);
   const moreButtonRef = useRef<ComponentRef<typeof View>>(null);
+  const [connectedSeconds, setConnectedSeconds] = useState(0);
 
   useEffect(() => {
     if (previousState.current !== vpnStatus.state) {
@@ -63,6 +64,18 @@ export function HomeScreen() {
       if (vpnStatus.state === 'error') errorHaptic();
       previousState.current = vpnStatus.state;
     }
+  }, [vpnStatus.state]);
+
+  useEffect(() => {
+    if (vpnStatus.state !== 'connected') {
+      setConnectedSeconds(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      setConnectedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(timer);
   }, [vpnStatus.state]);
 
   if (!subscription) return null;
@@ -141,8 +154,18 @@ export function HomeScreen() {
               {STATUS_LABEL[vpnStatus.state] ?? 'Отключено'}
             </Text>
           </View>
+          {isConnected ? (
+            <Text style={styles.connectedTimer}>
+              {String(Math.floor(connectedSeconds / 60)).padStart(2, '0')}:
+              {String(connectedSeconds % 60).padStart(2, '0')}
+            </Text>
+          ) : null}
           <Text style={styles.hint}>
-            {isConnected ? 'Удерживайте, чтобы отключиться' : 'Удерживайте, чтобы подключиться'}
+            {isConnected
+              ? 'Коснитесь, чтобы отключиться'
+              : vpnStatus.state === 'connecting'
+                ? 'Сфера собирается'
+                : 'Коснитесь для волны · удерживайте 8 секунд'}
           </Text>
         </View>
 
@@ -273,8 +296,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   statusPillConnected: {
-    backgroundColor: colors.greenSoft,
-    borderColor: 'rgba(52, 211, 153, 0.3)',
+    backgroundColor: colors.brandSoft,
+    borderColor: colors.brandBorder,
   },
   statusPillConnecting: {
     backgroundColor: colors.brandSoft,
@@ -291,7 +314,7 @@ const styles = StyleSheet.create({
     width: 5,
   },
   statusDotConnected: {
-    backgroundColor: colors.green,
+    backgroundColor: colors.brandStrong,
   },
   statusDotConnecting: {
     backgroundColor: colors.brandStrong,
@@ -306,10 +329,17 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   statusTextConnected: {
-    color: colors.green,
+    color: colors.text,
   },
   statusTextConnecting: {
     color: colors.brandStrong,
+  },
+  connectedTimer: {
+    color: colors.text3,
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 1,
   },
   hint: {
     color: colors.text3,

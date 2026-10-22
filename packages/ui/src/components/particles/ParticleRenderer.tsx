@@ -7,10 +7,11 @@ interface ParticleRendererProps {
   mode: ParticleMode;
 }
 
-function palette(mode: ParticleMode): [number, number, number] {
-  if (mode === 'connected') return [144, 156, 255];
+function palette(mode: ParticleMode, charge: number): [number, number, number] {
+  if (mode === 'connected') return [196, 202, 240];
+  if (charge > 0.01) return [178, 157, 255];
   if (mode === 'connecting') return [177, 157, 255];
-  return [118, 137, 166];
+  return [174, 178, 187];
 }
 
 /**
@@ -50,19 +51,22 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
 
       const blend = Math.min(1, dt * 4);
       const reaction = simulation.reaction;
+      const charge = simulation.charge;
       const targetGlow =
-        (mode === 'connected' ? 0.18 : mode === 'connecting' ? 0.12 : 0.08) + reaction * 0.08;
+        (mode === 'connected' ? 0.25 : mode === 'connecting' ? 0.16 : 0.06) +
+        charge * 0.16 +
+        reaction * 0.08;
       glowRef.current += (targetGlow - glowRef.current) * blend;
 
       const glow = context.createRadialGradient(center, center, 0, center, center, size * 0.48);
-      glow.addColorStop(0, `rgba(108, 121, 219, ${glowRef.current})`);
-      glow.addColorStop(0.45, 'rgba(108, 121, 219, 0.035)');
+      glow.addColorStop(0, `rgba(155, 139, 255, ${glowRef.current})`);
+      glow.addColorStop(0.45, 'rgba(100, 87, 204, 0.035)');
       glow.addColorStop(1, 'rgba(108, 121, 219, 0)');
       context.fillStyle = glow;
       context.fillRect(0, 0, size, size);
 
       context.globalCompositeOperation = 'lighter';
-      const targetColor = palette(mode);
+      const targetColor = palette(mode, charge);
       const color = colorRef.current;
       for (let channel = 0; channel < 3; channel += 1) {
         color[channel] += (targetColor[channel] - color[channel]) * blend;

@@ -38,25 +38,27 @@ const sphere = page.getByTestId('particle-sphere');
 const box = await sphere.boundingBox();
 if (!box) throw new Error('RageNet sphere not found');
 
-// Hold while moving inside the sphere: charge and connect.
+// Hold while moving inside the sphere: charge and connect after 8 seconds.
 await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 await page.mouse.down();
 await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2 + 14, { steps: 10 });
 await page.waitForTimeout(320);
 await page.screenshot({ path: path.join(outputDir, 'playing.png') });
-await page.waitForTimeout(580);
+await page.waitForTimeout(3000);
+await page.screenshot({ path: path.join(outputDir, 'charging.png') });
+await page.waitForTimeout(5100);
 await page.mouse.up();
-await page.waitForTimeout(1600);
+await page.waitForTimeout(1800);
 const dragHoldConnected = await page.getByText('Подключено', { exact: true }).isVisible();
 await page.screenshot({ path: path.join(outputDir, 'connected.png') });
 
-// Hold while moving inside the sphere: disconnect.
+// Hold while moving inside the sphere: disconnect after the long charge.
 await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 await page.mouse.down();
 await page.mouse.move(box.x + box.width / 2 + 34, box.y + box.height / 2 + 18, { steps: 8 });
-await page.waitForTimeout(900);
+await page.waitForTimeout(8400);
 await page.mouse.up();
-await page.waitForTimeout(1000);
+await page.waitForTimeout(1800);
 const dragHoldDisconnected = await page.getByText('Отключено', { exact: true }).isVisible();
 
 // A clear tap connects.
@@ -69,14 +71,12 @@ await page.screenshot({ path: path.join(outputDir, 'reaction.png') });
 await page.waitForTimeout(1600);
 const tapConnected = await page.getByText('Подключено', { exact: true }).isVisible();
 
-// A stationary hold charges, then disconnects.
+// A stationary hold charges, then disconnects after the long charge.
 await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 await page.mouse.down();
-await page.waitForTimeout(520);
-await page.screenshot({ path: path.join(outputDir, 'charging.png') });
-await page.waitForTimeout(420);
+await page.waitForTimeout(8400);
 await page.mouse.up();
-await page.waitForTimeout(1000);
+await page.waitForTimeout(1800);
 const holdDisconnected = await page.getByText('Отключено', { exact: true }).isVisible();
 
 await page.getByLabel('Меню подписки').click();
@@ -125,9 +125,9 @@ const holdBox = await page.getByTestId('particle-sphere').boundingBox();
 if (!holdBox) throw new Error('RageNet sphere not found after demo reload');
 await page.mouse.move(holdBox.x + holdBox.width / 2, holdBox.y + holdBox.height / 2);
 await page.mouse.down();
-await page.waitForTimeout(900);
+await page.waitForTimeout(8400);
 await page.mouse.up();
-await page.waitForTimeout(1600);
+await page.waitForTimeout(1800);
 const holdConnected = await page.getByText('Подключено', { exact: true }).isVisible();
 
 await browser.close();
