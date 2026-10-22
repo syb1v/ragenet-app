@@ -7,7 +7,7 @@ on:
         description: Build type
         type: choice
         options: [debug, release]
-        default: debug
+        default: release
   push:
     tags:
       - app-v*
@@ -18,7 +18,7 @@ permissions:
 env:
   CI: '1'
   EXPO_NO_TELEMETRY: '1'
-  BUILD_TYPE: ${{ github.event.inputs.build_type || (startsWith(github.ref, 'refs/tags/') && 'release' || 'debug') }}
+  BUILD_TYPE: ${{ github.event.inputs.build_type || 'release' }}
 
 jobs:
   android:

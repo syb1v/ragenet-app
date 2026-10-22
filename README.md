@@ -2,7 +2,7 @@
 
 Кроссплатформенный клиент RageNet на React Native (мобильные) и Tauri + React Native Web (десктоп). Ядро — Xray-core через `libXray`, с встроенным TUN-инбаундом.
 
-> **Статус: Phase 0, версия 0.3.12.** Это рабочий UI-прототип и фундамент проекта, а не готовый VPN-клиент. Реальный туннель, подпись iOS и привилегированный desktop-helper ещё не подключены. План и даты — в [docs/ROADMAP.md](docs/ROADMAP.md), версии — в [docs/VERSIONING.md](docs/VERSIONING.md).
+> **Статус: Phase 0, версия 0.3.13.** Это рабочий UI-прототип и фундамент проекта, а не готовый VPN-клиент. Реальный туннель, подпись iOS и привилегированный desktop-helper ещё не подключены. План и даты — в [docs/ROADMAP.md](docs/ROADMAP.md), версии — в [docs/VERSIONING.md](docs/VERSIONING.md).
 
 ## Что уже работает
 
@@ -91,7 +91,7 @@ CI: `.github/workflows/ci.yml` — типы, тесты, prettier и web build �
 
 ## Сборки
 
-- Android: универсальный APK должен быть **подписан**. «Неподписанный APK» нельзя установить; CI собирает debug/self-signed universal APK.
+- Android: универсальный APK должен быть **подписан**. «Неподписанный APK» нельзя установить; CI собирает self-signed Release APK со встроенным JS-бандлом.
 - iOS: unsigned IPA собирается, но VPN-extension не запустится без платного Apple Developer Program и entitlement `packet-tunnel-provider`.
 - macOS: для полноценного TUN нужен привилегированный helper; для распространения — Developer ID + notarization.
 - Windows: EXE будет без подписи, пока не добавлен code-signing сертификат.

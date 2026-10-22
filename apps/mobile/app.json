@@ -3,7 +3,7 @@
     "name": "RageNet",
     "slug": "ragenet",
     "scheme": "ragenet",
-    "version": "0.3.12",
+    "version": "0.3.13",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "net.ragenet.vpn",
-      "buildNumber": "15",
+      "buildNumber": "16",
       "infoPlist": {
         "CFBundleDisplayName": "RageNet VPN",
         "UIUserInterfaceStyle": "Dark",
@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "net.ragenet.vpn",
-      "versionCode": 15,
+      "versionCode": 16,
       "adaptiveIcon": {
         "backgroundColor": "#080D18",
         "foregroundImage": "./assets/android-icon-foreground.png",

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.13] - 2026-10-22
+
+### Fixed
+
+- Android releases now default to a self-signed Release APK with the embedded
+  `index.android.bundle` instead of the development Debug APK, which required
+  Metro and failed with `Unable to load script` on a standalone phone.
+
 ## [0.3.12] - 2026-10-22
 
 ### Changed
