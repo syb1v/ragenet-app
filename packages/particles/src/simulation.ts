@@ -82,14 +82,14 @@ export class ParticleSphereSimulation {
     for (let index = 0; index < this.count; index += 1) {
       const y = 1 - (index / Math.max(1, this.count - 1)) * 2;
       const ringRadius = Math.sqrt(Math.max(0, 1 - y * y));
-      const theta = index * GOLDEN_ANGLE + (random() - 0.5) * 0.22;
+      const theta = index * GOLDEN_ANGLE + (random() - 0.5) * 0.14;
 
       let x = Math.cos(theta) * ringRadius;
       let yy = y;
       let z = Math.sin(theta) * ringRadius;
 
       // Jitter the lattice just enough to remove the synthetic regularity.
-      const jitter = 0.08 + random() * 0.12;
+      const jitter = 0.02 + random() * 0.05;
       x += (random() - 0.5) * jitter;
       yy += (random() - 0.5) * jitter;
       z += (random() - 0.5) * jitter;
@@ -98,8 +98,14 @@ export class ParticleSphereSimulation {
       yy /= length;
       z /= length;
 
-      const outlier = random() < 0.04;
-      const radius = outlier ? 1.08 + random() * 0.12 : 0.9 + random() * 0.13;
+      // Three quiet shells keep the cloud volumetric and less lattice-like.
+      const shellRoll = random();
+      const radius =
+        shellRoll < 0.7
+          ? 0.988 + random() * 0.022
+          : shellRoll < 0.92
+            ? 0.79 + random() * 0.06
+            : 0.59 + random() * 0.07;
       const offset = index * 3;
       this.base[offset] = x * radius;
       this.base[offset + 1] = yy * radius;
@@ -114,7 +120,7 @@ export class ParticleSphereSimulation {
       this.velocity[offset + 2] = (random() - 0.5) * 0.02;
 
       this.phase[index] = random() * TAU;
-      this.pointSize[index] = 0.35 + random() * 0.55;
+      this.pointSize[index] = 1.1 + random() * 0.95;
     }
   }
 
@@ -173,7 +179,7 @@ export class ParticleSphereSimulation {
     this.time += step;
     if (this.waveStrength > 0) {
       this.waveAge += step;
-      if (this.waveAge >= 0.8) {
+      if (this.waveAge >= 1.1) {
         this.waveStrength = 0;
       }
     }
@@ -288,6 +294,17 @@ export class ParticleSphereSimulation {
     if (this.impulse < 0.001) this.impulse = 0;
   }
 
+  /** Current wave data for a subtle one-front renderer overlay. */
+  getWave(): { x: number; y: number; progress: number; strength: number } | null {
+    if (this.waveStrength <= 0.001) return null;
+    return {
+      x: this.waveX,
+      y: this.waveY,
+      progress: clamp(this.waveAge / 1.1, 0, 1),
+      strength: this.waveStrength,
+    };
+  }
+
   /**
    * Project particles into a size×size square.
    * Returns a reused Float32Array: x, y, radius, alpha per particle.
@@ -295,7 +312,7 @@ export class ParticleSphereSimulation {
   project(size: number): Float32Array {
     const center = size / 2;
     const radius = size * 0.37;
-    const pointerRadius = size * 0.23;
+    const pointerRadius = size * 0.36;
     const pointerScreenX = center + (this.pointerX * 2 - 1) * radius;
     const pointerScreenY = center + (this.pointerY * 2 - 1) * radius;
     const projected = this.projected;
@@ -316,7 +333,7 @@ export class ParticleSphereSimulation {
         const distance = Math.hypot(dx, dy);
         if (distance < pointerRadius && distance > 0.001) {
           const force =
-            (1 - distance / pointerRadius) ** 2 * pointerRadius * 0.1 * this.pointerStrength;
+            (1 - distance / pointerRadius) ** 2 * pointerRadius * 0.13 * this.pointerStrength;
           screenX += (dx / distance) * force;
           screenY += (dy / distance) * force;
         }
@@ -338,21 +355,31 @@ export class ParticleSphereSimulation {
         const proximity = Math.max(0, 1 - distance / pointerRadius);
         if (proximity > 0) {
           const shiver = this.pointerEnergy * 2.8 * proximity;
-          screenX += Math.sin(this.time * 52 + index * 2.3) * shiver;
-          screenY += Math.cos(this.time * 47 + index * 1.9) * shiver;
+          const shiverPhase = this.phase[index];
+          screenX += Math.sin(this.time * 49 + shiverPhase * 17) * shiver;
+          screenY += Math.cos(this.time * 43 + shiverPhase * 23) * shiver;
         }
       }
 
+      let waveBoost = 0;
       if (this.waveStrength > 0) {
         const waveOriginX = center + (this.waveX * 2 - 1) * radius;
         const waveOriginY = center + (this.waveY * 2 - 1) * radius;
         const dx = screenX - waveOriginX;
         const dy = screenY - waveOriginY;
         const distance = Math.max(0.001, Math.hypot(dx, dy));
-        const envelope = Math.exp(-this.waveAge * 3.2) * (1 - this.waveAge / 0.8);
-        const front = this.waveAge * size * 0.64;
-        const displacement =
-          Math.sin((distance - front) * 0.16) * envelope * size * 0.025 * this.waveStrength;
+        const progress = clamp(this.waveAge / 1.1, 0, 1);
+        const front = progress * size * 1.22;
+        const thickness = size * 0.085 + this.waveAge * size * 0.014;
+        const angle = Math.atan2(dy, dx);
+        const organicFront =
+          1 +
+          Math.sin(angle * 3.1 + this.time * 1.2) * 0.035 +
+          Math.sin(angle * 6.7 - this.time * 0.9) * 0.018;
+        const gaussian = Math.exp(-(((distance - front * organicFront) / thickness) ** 2));
+        const envelope = (1 - progress) ** 1.4;
+        const displacement = gaussian * envelope * size * 0.105 * this.waveStrength;
+        waveBoost = gaussian * envelope * this.waveStrength;
         screenX += (dx / distance) * displacement;
         screenY += (dy / distance) * displacement;
       }
@@ -371,22 +398,29 @@ export class ParticleSphereSimulation {
       // Charge feedback is a deliberate high-frequency tremble. It is applied
       // in screen space so it never destabilises the spring simulation.
       if (this.chargeLevel > 0.001) {
-        const tremble = this.chargeLevel * 5.2;
-        screenX += Math.sin(this.time * 46 + index * 2.1) * tremble;
-        screenY += Math.cos(this.time * 41 + index * 1.7) * tremble;
+        const tremble = this.chargeLevel * 4.6;
+        const phase = this.phase[index];
+        const tremorX =
+          Math.sin(this.time * (22 + phase * 8) + phase * 19) +
+          Math.sin(this.time * (37 + phase * 5) + phase * 7) * 0.45;
+        const tremorY =
+          Math.cos(this.time * (19 + phase * 9) + phase * 23) +
+          Math.cos(this.time * (33 + phase * 6) + phase * 11) * 0.4;
+        screenX += tremorX * tremble;
+        screenY += tremorY * tremble;
       }
 
       const output = index * 4;
       projected[output] = screenX;
       projected[output + 1] = screenY;
       projected[output + 2] =
-        (0.28 + depth * 1.05 + this.chargeLevel * 0.1) *
+        (0.55 + depth * 1.5 + this.chargeLevel * 0.1) *
         (size / 300) *
         this.pointSize[index] *
-        (1 + this.reaction * 0.18);
+        (1 + this.reaction * 0.18 + waveBoost * 0.85);
       projected[output + 3] = Math.min(
         1,
-        0.2 + depth * 0.78 + this.reaction * 0.08 + this.chargeLevel * 0.08,
+        0.38 + depth * 0.56 + this.reaction * 0.08 + this.chargeLevel * 0.08 + waveBoost * 0.62,
       );
     }
 

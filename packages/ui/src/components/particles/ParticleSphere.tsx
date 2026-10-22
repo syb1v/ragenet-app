@@ -3,6 +3,7 @@ import { ParticleSphereSimulation, type ParticleMode } from '@ragenet/particles'
 import { useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
+  Easing,
   Platform,
   StyleSheet,
   View,
@@ -23,17 +24,23 @@ import { ParticleRenderer } from './ParticleRenderer';
 interface ParticleSphereProps {
   state: VpnState;
   onToggle: () => void;
+  onChargeProgress?: (progress: number | null) => void;
   size?: number;
 }
 
 const HOLD_MS = 8000;
 const TAP_MAX_MS = 320;
 
-export function ParticleSphere({ state, onToggle, size: explicitSize }: ParticleSphereProps) {
+export function ParticleSphere({
+  state,
+  onToggle,
+  onChargeProgress,
+  size: explicitSize,
+}: ParticleSphereProps) {
   const { width } = useWindowDimensions();
   const size = explicitSize ?? Math.min(width * 0.7, 280);
   const hitRadius = size * 0.46;
-  const simulation = useMemo(() => new ParticleSphereSimulation({ count: 1600 }), []);
+  const simulation = useMemo(() => new ParticleSphereSimulation({ count: 680 }), []);
 
   const pressing = useRef(false);
   const triggeredByHold = useRef(false);
@@ -41,9 +48,12 @@ export function ParticleSphere({ state, onToggle, size: explicitSize }: Particle
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chargeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
+  const pressOrigin = useRef({ x: 0.5, y: 0.5 });
+  const burstHapticTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previousState = useRef(state);
   const renderScale = useRef(new Animated.Value(1)).current;
   const burstStarted = useRef(false);
+  const reportedCharge = useRef(0);
 
   const webGestureStyle =
     Platform.OS === 'web'
@@ -81,6 +91,10 @@ export function ParticleSphere({ state, onToggle, size: explicitSize }: Particle
       clearInterval(chargeTimer.current);
       chargeTimer.current = null;
     }
+    if (burstHapticTimer.current) {
+      clearTimeout(burstHapticTimer.current);
+      burstHapticTimer.current = null;
+    }
   };
 
   useEffect(
@@ -101,6 +115,7 @@ export function ParticleSphere({ state, onToggle, size: explicitSize }: Particle
     clearTimers();
     stopHapticRamp();
     simulation.setCharge(0);
+    onChargeProgress?.(null);
   };
 
   const runBurst = () => {
@@ -108,17 +123,38 @@ export function ParticleSphere({ state, onToggle, size: explicitSize }: Particle
     burstStarted.current = true;
     clearTimers();
     stopHapticRamp();
+    simulation.setPointer(null, null);
     simulation.setCharge(1);
+    onChargeProgress?.(1);
     chargeHaptic('light');
-    Animated.sequence([
-      Animated.timing(renderScale, { toValue: 0.78, duration: 140, useNativeDriver: true }),
-      Animated.timing(renderScale, { toValue: 1.17, duration: 220, useNativeDriver: true }),
-      Animated.spring(renderScale, { toValue: 1, speed: 16, bounciness: 5, useNativeDriver: true }),
-    ]).start(({ finished }) => {
-      simulation.setCharge(0);
-      renderScale.setValue(1);
-      burstStarted.current = false;
-      if (finished) onToggle();
+    Animated.timing(renderScale, {
+      toValue: 0.56,
+      duration: 820,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished: compressed }) => {
+      if (!compressed) return;
+      onToggle();
+      burstHapticTimer.current = setTimeout(() => chargeHaptic('light'), 760);
+      Animated.timing(renderScale, {
+        toValue: 1.3,
+        duration: 760,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished: expanded }) => {
+        if (!expanded) return;
+        Animated.spring(renderScale, {
+          toValue: 1,
+          speed: 8,
+          bounciness: 9,
+          useNativeDriver: true,
+        }).start(({ finished: settled }) => {
+          simulation.setCharge(0);
+          renderScale.setValue(1);
+          burstStarted.current = false;
+          if (settled) onChargeProgress?.(null);
+        });
+      });
     });
   };
 
@@ -134,7 +170,9 @@ export function ParticleSphere({ state, onToggle, size: explicitSize }: Particle
     lastPoint.current = null;
     burstStarted.current = false;
     simulation.setCharge(0);
-    simulation.triggerWave(locationX / size, locationY / size);
+    reportedCharge.current = 0;
+    onChargeProgress?.(0);
+    pressOrigin.current = { x: locationX / size, y: locationY / size };
     updatePointer(event);
     tickHaptic();
 
@@ -143,6 +181,10 @@ export function ParticleSphere({ state, onToggle, size: explicitSize }: Particle
       if (!pressing.current) return;
       const progress = Math.min(1, (Date.now() - pressStartedAt.current) / HOLD_MS);
       simulation.setCharge(progress);
+      if (progress >= 1 || progress - reportedCharge.current >= 0.02) {
+        reportedCharge.current = progress;
+        onChargeProgress?.(progress);
+      }
     }, 32);
 
     holdTimer.current = setTimeout(() => {
@@ -196,6 +238,7 @@ export function ParticleSphere({ state, onToggle, size: explicitSize }: Particle
     lastPoint.current = null;
 
     if (allowTap && !wasTriggered && elapsed <= TAP_MAX_MS) {
+      simulation.triggerWave(pressOrigin.current.x, pressOrigin.current.y);
       tapHaptic();
       onToggle();
     }

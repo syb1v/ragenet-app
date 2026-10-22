@@ -57,6 +57,7 @@ export function HomeScreen() {
   const previousState = useRef(vpnStatus.state);
   const moreButtonRef = useRef<ComponentRef<typeof View>>(null);
   const [connectedSeconds, setConnectedSeconds] = useState(0);
+  const [chargeProgress, setChargeProgress] = useState<number | null>(null);
 
   useEffect(() => {
     if (previousState.current !== vpnStatus.state) {
@@ -126,7 +127,11 @@ export function HomeScreen() {
         bounces={false}
       >
         <View style={styles.coreArea}>
-          <ParticleSphere state={vpnStatus.state} onToggle={toggleConnection} />
+          <ParticleSphere
+            state={vpnStatus.state}
+            onToggle={toggleConnection}
+            onChargeProgress={setChargeProgress}
+          />
           <View
             style={[
               styles.statusPill,
@@ -163,9 +168,13 @@ export function HomeScreen() {
           <Text style={styles.hint}>
             {isConnected
               ? 'Коснитесь, чтобы отключиться'
-              : vpnStatus.state === 'connecting'
-                ? 'Сфера собирается'
-                : 'Коснитесь для волны · удерживайте 8 секунд'}
+              : chargeProgress != null
+                ? chargeProgress >= 1
+                  ? 'Сфера собирается'
+                  : `Удерживайте ${Math.max(0, 8 - chargeProgress * 8).toFixed(1)} с`
+                : vpnStatus.state === 'connecting'
+                  ? 'Сфера собирается'
+                  : 'Коснитесь для волны · удерживайте 8 секунд'}
           </Text>
         </View>
 

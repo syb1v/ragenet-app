@@ -1,6 +1,6 @@
 import type { ParticleMode, ParticleSphereSimulation } from '@ragenet/particles';
 import { useEffect, useRef, useState } from 'react';
-import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, G, Path, RadialGradient, Stop } from 'react-native-svg';
 
 interface ParticleRendererProps {
   simulation: ParticleSphereSimulation;
@@ -21,10 +21,16 @@ function colorForMode(mode: ParticleMode, charge: number): [number, number, numb
  * a visually equivalent point cloud while avoiding a long CMake step in CI.
  */
 export function ParticleRenderer({ simulation, size, mode }: ParticleRendererProps) {
-  const [path, setPath] = useState('');
+  const [paths, setPaths] = useState<[string, string, string]>(['', '', '']);
   const colorRef = useRef<[number, number, number]>([118, 137, 166]);
   const [color, setColor] = useState('rgb(118, 137, 166)');
   const [strokeWidth, setStrokeWidth] = useState(1.2);
+  const [waveRing, setWaveRing] = useState<{
+    x: number;
+    y: number;
+    r: number;
+    opacity: number;
+  } | null>(null);
 
   useEffect(() => {
     let animation = 0;
@@ -40,13 +46,15 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
       if (now - lastPaint >= 33) {
         lastPaint = now;
         const projected = simulation.project(size);
-        const commands: string[] = [];
+        const buckets: [string[], string[], string[]] = [[], [], []];
         for (let index = 0; index < projected.length; index += 4) {
           const x = projected[index].toFixed(1);
           const y = projected[index + 1].toFixed(1);
-          commands.push(`M${x} ${y}l0.01 0`);
+          const radius = projected[index + 2];
+          const bucket = radius < 1.1 ? 0 : radius < 1.75 ? 1 : 2;
+          buckets[bucket].push(`M${x} ${y}l0.01 0`);
         }
-        setPath(commands.join(''));
+        setPaths([buckets[0].join(''), buckets[1].join(''), buckets[2].join('')]);
 
         const target = colorForMode(mode, simulation.charge);
         const current = colorRef.current;
@@ -61,7 +69,18 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
             Math.round(current[1] + boost),
           )}, ${Math.min(255, Math.round(current[2] + boost))})`,
         );
-        setStrokeWidth(1.05 + simulation.charge * 0.45 + simulation.reaction * 0.2);
+        setStrokeWidth(1.45 + simulation.charge * 0.4 + simulation.reaction * 0.2);
+        const wave = simulation.getWave();
+        setWaveRing(
+          wave
+            ? {
+                x: size / 2 + (wave.x * 2 - 1) * size * 0.37,
+                y: size / 2 + (wave.y * 2 - 1) * size * 0.37,
+                r: wave.progress * size * 1.22,
+                opacity: (1 - wave.progress) ** 1.5 * 0.22 * wave.strength,
+              }
+            : null,
+        );
       }
 
       animation = requestAnimationFrame(loop);
@@ -81,9 +100,47 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
           <Stop offset="0.5" stopColor="#6457cc" stopOpacity={glow * 0.22} />
           <Stop offset="1" stopColor="#0d0b18" stopOpacity="0" />
         </RadialGradient>
+        <ClipPath id="particleClip">
+          <Circle cx={size / 2} cy={size / 2} r={size * 0.37} />
+        </ClipPath>
       </Defs>
       <Circle cx={size / 2} cy={size / 2} r={size * 0.48} fill="url(#particleGlow)" />
-      <Path d={path} stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" fill="none" />
+      <Path
+        d={paths[0]}
+        stroke={color}
+        strokeWidth={strokeWidth * 0.78}
+        strokeOpacity={0.58}
+        strokeLinecap="round"
+        fill="none"
+      />
+      <Path
+        d={paths[1]}
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeOpacity={0.82}
+        strokeLinecap="round"
+        fill="none"
+      />
+      <Path
+        d={paths[2]}
+        stroke={color}
+        strokeWidth={strokeWidth * 1.3}
+        strokeLinecap="round"
+        fill="none"
+      />
+      {waveRing && waveRing.opacity > 0.004 ? (
+        <G clipPath="url(#particleClip)">
+          <Circle
+            cx={waveRing.x}
+            cy={waveRing.y}
+            r={waveRing.r}
+            fill="none"
+            stroke="#d8d1ff"
+            strokeWidth={1.4}
+            opacity={waveRing.opacity}
+          />
+        </G>
+      ) : null}
     </Svg>
   );
 }

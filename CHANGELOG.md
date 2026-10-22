@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.25] - 2026-10-22
+
+### Changed
+
+- The tap response is now one soft wavefront that travels from the finger
+  across the sphere, instead of several concentric rings.
+- The particle cloud uses fewer, larger particles in a volumetric distribution,
+  with irregular per-particle tremble so vibration no longer forms a grid.
+- Touch repulsion has a wider, softer area around the finger.
+- The hold-to-connect transition now gathers the sphere inward more slowly,
+  then expands it with a longer, damped burst.
+- The home screen shows a countdown while charging and hands the state over to
+  the connection flow when the burst begins.
+
 ## [0.1.24] - 2026-10-22
 
 ### Added
