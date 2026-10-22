@@ -9,13 +9,7 @@ import {
   type GestureResponderEvent,
   type ViewStyle,
 } from 'react-native';
-import {
-  chargeHaptic,
-  dragHaptic,
-  particleHaptics,
-  tapHaptic,
-  tickHaptic,
-} from '../../lib/haptics';
+import { dragHaptic, particleHaptics, tapHaptic, tickHaptic } from '../../lib/haptics';
 import { ParticleRenderer } from './ParticleRenderer';
 
 interface ParticleSphereProps {
@@ -29,8 +23,11 @@ const HOLD_MS = 8000;
 const TAP_MAX_MS = 320;
 const GATHER_MS = 1500;
 const COMPRESS_HOLD_MS = 420;
-const BURST_MS = 2000;
+const BURST_MS = 2200;
 const BURST_CONNECT_MS = 320;
+const BURST_PEAK_SCALE = 1.85;
+const BURST_EXPAND_START_MS = 100;
+const BURST_PEAK_MS = 560;
 
 export function ParticleSphere({
   state,
@@ -103,11 +100,15 @@ export function ParticleSphere({
     }
   };
 
-  const stopParticleHapticStream = () => {
+  const stopParticleHapticUpdates = () => {
     if (hapticTimer.current) {
       clearInterval(hapticTimer.current);
       hapticTimer.current = null;
     }
+  };
+
+  const stopParticleHapticStream = () => {
+    stopParticleHapticUpdates();
     particleHaptics.stop();
   };
 
@@ -168,26 +169,28 @@ export function ParticleSphere({
         const burstElapsed = elapsed - GATHER_MS - COMPRESS_HOLD_MS;
         if (!released) {
           released = true;
-          stopParticleHapticStream();
+          stopParticleHapticUpdates();
+          particleHaptics.burst(1);
           simulation.clearPointer();
           simulation.setVibration(0);
           simulation.setGather(0);
           simulation.setBurstScale(1);
           simulation.triggerBurst();
-          chargeHaptic('medium');
         }
 
-        // Hold the release: the compressed cloud expands through 1.0 to 1.3,
-        // then settles back to the resting radius. This is deliberately a
-        // visible pulse, not a snap from the compressed state to normal size.
-        if (burstElapsed < 280) {
+        // Hold the release: the compressed cloud expands through a much larger
+        // overshoot, then settles back to the resting radius.
+        if (burstElapsed < BURST_EXPAND_START_MS) {
           simulation.setBurstScale(1);
-        } else if (burstElapsed < 560) {
-          const p = (burstElapsed - 280) / 280;
-          simulation.setBurstScale(1 + 0.3 * (1 - (1 - p) ** 3));
+        } else if (burstElapsed < BURST_PEAK_MS) {
+          const p =
+            (burstElapsed - BURST_EXPAND_START_MS) / (BURST_PEAK_MS - BURST_EXPAND_START_MS);
+          const eased = 1 - (1 - p) ** 3;
+          simulation.setBurstScale(1 + (BURST_PEAK_SCALE - 1) * eased);
         } else {
-          const p = Math.min(1, (burstElapsed - 560) / (BURST_MS - 560));
-          simulation.setBurstScale(1.3 - 0.3 * (p * p * (3 - 2 * p)));
+          const p = Math.min(1, (burstElapsed - BURST_PEAK_MS) / (BURST_MS - BURST_PEAK_MS));
+          const eased = p * p * (3 - 2 * p);
+          simulation.setBurstScale(BURST_PEAK_SCALE - (BURST_PEAK_SCALE - 1) * eased);
         }
 
         if (!connected && burstElapsed >= BURST_CONNECT_MS) {

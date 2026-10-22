@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.10] - 2026-10-22
+
+### Changed
+
+- The explosion now has a dedicated native haptic burst layered from a short
+  continuous rumble and several transient impacts, instead of switching to a
+  single medium impact after the particle stream stops.
+- Continuous particle haptics leave amplitude headroom so the explosion reads
+  as a stronger contrast.
+- The sphere now expands through a visible 1.85× peak before settling back to
+  1.0 over a longer release animation.
+
 ## [0.3.9] - 2026-10-22
 
 ### Added

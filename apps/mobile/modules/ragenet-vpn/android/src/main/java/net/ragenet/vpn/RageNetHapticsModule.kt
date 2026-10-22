@@ -56,6 +56,10 @@ class RageNetHapticsModule : Module() {
       )
     }
 
+    Function("burst") { intensity: Double ->
+      burstVibration(intensity.coerceIn(0.4, 1.0))
+    }
+
     Function("stop") {
       running = false
       try {
@@ -111,9 +115,9 @@ class RageNetHapticsModule : Module() {
     val amplitudes = IntArray(segments) { index ->
       val phase = (index.toDouble() / segments.toDouble()) * 2 * PI * (3.0 + density * 5.0)
       val wave = 0.62 + 0.38 * sin(phase)
-      (255.0 * (0.18 + 0.82 * energy) * wave * (0.7 + 0.3 * density))
+      (255.0 * (0.16 + 0.68 * energy) * wave * (0.7 + 0.3 * density))
         .roundToInt()
-        .coerceIn(1, 255)
+        .coerceIn(1, 214)
     }
 
     try {
@@ -128,6 +132,33 @@ class RageNetHapticsModule : Module() {
       }
     } catch (_: Exception) {
       // Some devices refuse very short waveform segments; keep the gesture alive.
+    }
+  }
+
+  private fun burstVibration(intensity: Double) {
+    running = false
+    val vibrator = findVibrator() ?: return
+    try {
+      vibrator.cancel()
+      if (vibrator.hasAmplitudeControl()) {
+        val segments = 12
+        val timings = LongArray(segments) { 24 }
+        val base = (255.0 * intensity).roundToInt().coerceIn(120, 255)
+        val amplitudes = IntArray(segments) { index ->
+          val decay = (1.0 - index.toDouble() / (segments - 1)).coerceAtLeast(0.0)
+          (base * decay).roundToInt().coerceIn(1, 255)
+        }
+        vibrator.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
+      } else {
+        vibrator.vibrate(
+          VibrationEffect.createWaveform(
+            longArrayOf(0, 35, 20, 35, 30, 45, 45, 70, 90),
+            -1,
+          ),
+        )
+      }
+    } catch (_: Exception) {
+      // Haptics are optional feedback.
     }
   }
 

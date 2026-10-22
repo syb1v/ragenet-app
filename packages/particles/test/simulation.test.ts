@@ -33,6 +33,29 @@ describe('ParticleSphereSimulation', () => {
     expect(snapshot.frequency).toBeGreaterThan(0);
   });
 
+  it('supports a large burst scale and returns to the resting projection', () => {
+    const simulation = new ParticleSphereSimulation({ count: 96, seed: 13 });
+    for (let i = 0; i < 90; i += 1) simulation.update(1 / 60);
+
+    simulation.setBurstScale(1);
+    const base = Float32Array.from(simulation.project(300));
+    simulation.setBurstScale(1.85);
+    const wide = Float32Array.from(simulation.project(300));
+
+    const spread = (values: Float32Array) => {
+      let max = 0;
+      for (let i = 0; i < values.length; i += 4) {
+        max = Math.max(max, Math.hypot(values[i] - 150, values[i + 1] - 150));
+      }
+      return max;
+    };
+    expect(spread(wide) / spread(base)).toBeGreaterThan(1.6);
+
+    simulation.setBurstScale(1);
+    const settled = Float32Array.from(simulation.project(300));
+    expect(Array.from(settled)).toEqual(Array.from(base));
+  });
+
   it('stays finite under charge, impulse and drag', () => {
     const simulation = new ParticleSphereSimulation({ count: 128, seed: 11 });
     simulation.setPointer(0.8, 0.2);

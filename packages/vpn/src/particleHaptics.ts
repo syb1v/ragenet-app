@@ -10,6 +10,7 @@ interface NativeParticleHaptics {
   isAvailable(): boolean;
   start(): boolean;
   update(energy: number, density: number, frequency: number): void;
+  burst(intensity: number): void;
   stop(): void;
 }
 
@@ -17,6 +18,7 @@ export interface ParticleHaptics {
   readonly available: boolean;
   start(): void;
   update(frame: ParticleHapticFrame): void;
+  burst(intensity?: number): void;
   stop(): void;
 }
 
@@ -71,6 +73,14 @@ export function createParticleHaptics(): ParticleHaptics {
         native!.update(energy, density, frequency);
       } catch {
         // Haptics are optional feedback; never break the gesture.
+      }
+    },
+    burst(intensity = 1) {
+      if (!available) return;
+      try {
+        native!.burst(unit(intensity));
+      } catch {
+        // Haptics are optional feedback.
       }
     },
     stop() {

@@ -201,7 +201,7 @@ export class ParticleSphereSimulation {
 
   /** Visual expansion of the whole cloud during the release. */
   setBurstScale(value: number): void {
-    this.burstScale = clamp(value, 0.5, 1.5);
+    this.burstScale = clamp(value, 0.5, 2.2);
   }
 
   /** Visual tremble envelope. Kept separate from charge so it can ramp slowly. */
@@ -215,7 +215,7 @@ export class ParticleSphereSimulation {
    */
   triggerBurst(strength = 1): void {
     this.burstGlow = clamp(strength, 0, 1.5);
-    const power = 1.35 * clamp(strength, 0, 1.5);
+    const power = 1.5 * clamp(strength, 0, 1.5);
     for (let index = 0; index < this.count; index += 1) {
       const offset = index * 3;
       const x = this.position[offset];
