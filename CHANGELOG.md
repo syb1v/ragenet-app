@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.7] - 2026-10-22
+
+### Fixed
+
+- Full Xray configs now use their top-level `remarks` (or
+  `meta.serverDescription`) as the location name instead of falling back to
+  the proxy outbound tag. Flag and country detection now works as expected.
+
 ## [0.3.6] - 2026-10-22
 
 ### Added

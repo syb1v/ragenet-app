@@ -94,6 +94,27 @@ describe('subscription parser', () => {
     expect(parsed.servers).toHaveLength(2);
   });
 
+  it('uses a full config remarks as the location name', () => {
+    const parsed = parseSubscription(
+      JSON.stringify({
+        remarks: '🇫🇮 Финляндия | Все операторы',
+        meta: { serverDescription: 'Fallback description' },
+        inbounds: [],
+        outbounds: [
+          {
+            tag: 'proxy',
+            protocol: 'vless',
+            settings: { vnext: [{ address: 'fi.example.com', port: 443, users: [] }] },
+          },
+        ],
+      }),
+    );
+    expect(parsed.servers[0]).toMatchObject({
+      name: '🇫🇮 Финляндия | Все операторы',
+      countryCode: 'FI',
+    });
+  });
+
   it('reads the endpoint from a full Hysteria 2 config', () => {
     const parsed = parseSubscription(
       JSON.stringify({

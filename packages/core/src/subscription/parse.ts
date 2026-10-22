@@ -374,6 +374,38 @@ function isFullXrayConfig(value: unknown): value is Record<string, unknown> {
   return Array.isArray(object.inbounds) && Array.isArray(object.outbounds);
 }
 
+function configName(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed || undefined;
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const name = configName(entry);
+      if (name) return name;
+    }
+  }
+  return undefined;
+}
+
+function fullConfigName(
+  config: Record<string, unknown>,
+  proxy: Record<string, unknown> | undefined,
+  index: number,
+): string {
+  const meta = config.meta;
+  const metaObject =
+    meta && typeof meta === 'object' && !Array.isArray(meta)
+      ? (meta as Record<string, unknown>)
+      : undefined;
+  return (
+    configName(config.remarks) ??
+    configName(metaObject?.serverDescription) ??
+    configName(proxy?.tag) ??
+    `Full config ${index + 1}`
+  );
+}
+
 function nodeFromFullConfig(config: Record<string, unknown>, index: number): ServerNode {
   const outbounds = (config.outbounds as Array<Record<string, unknown>>) ?? [];
   const proxy = outbounds.find((outbound) => {
@@ -386,7 +418,7 @@ function nodeFromFullConfig(config: Record<string, unknown>, index: number): Ser
   const servers = (settings.servers as Array<Record<string, unknown>> | undefined)?.[0];
   const host = String(vnext?.address ?? servers?.address ?? settings.address ?? 'full-config');
   const port = Number(vnext?.port ?? servers?.port ?? settings.port ?? 443);
-  const name = String(proxy?.tag ?? `Full config ${index + 1}`);
+  const name = fullConfigName(config, proxy, index);
   const countryCode = countryCodeFromName(name);
 
   return {
