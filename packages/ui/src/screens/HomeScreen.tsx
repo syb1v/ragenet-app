@@ -19,7 +19,7 @@ import { Screen } from '../components/Screen';
 import { ParticleSphere } from '../components/particles/ParticleSphere';
 import { errorHaptic, successHaptic } from '../lib/haptics';
 import { formatBytes, formatDate, formatUpdated, stripFlag } from '../lib/format';
-import { DEMO_SUPPORT_URL } from '../lib/demo';
+import { TELEGRAM_SUPPORT_URL } from '../lib/links';
 import { TELEGRAM_BOT_URL } from '../lib/links';
 import { useAppStore } from '../store/useAppStore';
 
@@ -42,7 +42,7 @@ export function HomeScreen({ desktop = false }: HomeScreenProps) {
   const vpnStatus = useAppStore((state) => state.vpnStatus);
   const isRefreshing = useAppStore((state) => state.isRefreshing);
   const openSubscriptionMenu = useAppStore((state) => state.openSubscriptionMenu);
-  const pingServers = useAppStore((state) => state.pingServers);
+  const pingSelectedServer = useAppStore((state) => state.pingSelectedServer);
   const isPinging = useAppStore((state) => state.isPinging);
 
   const navigate = useAppStore((state) => state.navigate);
@@ -81,7 +81,7 @@ export function HomeScreen({ desktop = false }: HomeScreenProps) {
     servers.find((server) => server.id === selectedServerId) ?? servers[0] ?? null;
   const total = subscription.meta.totalBytes;
   const used = (subscription.meta.downloadBytes ?? 0) + (subscription.meta.uploadBytes ?? 0);
-  const supportUrl = subscription.meta.supportUrl ?? DEMO_SUPPORT_URL;
+  const supportUrl = subscription.meta.supportUrl ?? TELEGRAM_SUPPORT_URL;
   const flag = selectedServer?.flagEmoji ?? flagForCountryCode(selectedServer?.countryCode) ?? '🌐';
   const serverName = selectedServer ? stripFlag(selectedServer.name) : 'Выберите сервер';
   const isConnected = vpnStatus.state === 'connected';
@@ -162,6 +162,8 @@ export function HomeScreen({ desktop = false }: HomeScreenProps) {
             ) : null}
           </View>
 
+          {!desktop ? <View style={styles.mobileGap} /> : null}
+
           <View style={[styles.info, desktop && styles.desktopInfo]}>
             <View style={styles.subscriptionRow}>
               <View style={styles.subscriptionText}>
@@ -173,7 +175,11 @@ export function HomeScreen({ desktop = false }: HomeScreenProps) {
                 </Text>
               </View>
               <View style={styles.subscriptionActions}>
-                <IconButton accessibilityLabel="Проверить пинг" onPress={pingServers} size={40}>
+                <IconButton
+                  accessibilityLabel="Проверить пинг"
+                  onPress={pingSelectedServer}
+                  size={40}
+                >
                   {isPinging ? (
                     <PingDots color={colors.text2} />
                   ) : (
@@ -357,6 +363,9 @@ const styles = StyleSheet.create({
   },
   mobileRow: {
     flexGrow: 1,
+  },
+  mobileGap: {
+    height: 36,
   },
   desktopRow: {
     alignItems: 'stretch',

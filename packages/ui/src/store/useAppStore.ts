@@ -15,7 +15,6 @@ import { createVpnBridge, type VpnBridge } from '@ragenet/vpn';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
-import { createDemoSubscription } from '../lib/demo';
 
 export type Screen = 'home' | 'settings' | 'logs';
 export type Sheet = 'addKey' | 'servers' | 'reset' | 'qr' | 'delete' | null;
@@ -49,11 +48,12 @@ interface AppState {
   toast: string | null;
   isRefreshing: boolean;
   isPinging: boolean;
+  isSwitching: boolean;
 
-  loadDemo: () => void;
   addSubscription: (input: string) => Promise<void>;
   refreshSubscription: () => Promise<void>;
   pingServers: () => Promise<void>;
+  pingSelectedServer: () => Promise<void>;
   loadNativeLogs: () => Promise<void>;
   clearLogs: () => Promise<void>;
   selectServer: (id: string) => void;
@@ -109,16 +109,53 @@ export const DEVICE = {
   os: platformName(),
   osVersion: Platform.Version?.toString() ?? 'unknown',
   model: deviceModel(),
-  appVersion: Constants.expoConfig?.version ?? '0.1.7',
+  appVersion: Constants.expoConfig?.version ?? '0.3.0',
 };
 
 let vpnBridge: VpnBridge | null = null;
 let vpnUnsubscribe: (() => void) | null = null;
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
+let suppressVpnStatus = false;
 
 function getVpnBridge(): VpnBridge {
   if (!vpnBridge) vpnBridge = createVpnBridge();
   return vpnBridge;
+}
+
+async function probeLatency(
+  bridge: VpnBridge,
+  server: ServerNode,
+  timeoutMs = 1400,
+): Promise<number | null> {
+  const host = server.host;
+  if (!host) return null;
+  const portSuffix = server.port === 443 ? '' : `:${server.port}`;
+  const hostPart = host.includes(':') ? `[${host}]` : host;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  try {
+    await fetch(`https://${hostPart}${portSuffix}/`, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    return Math.max(
+      0,
+      Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt),
+    );
+  } catch {
+    // Not every VPN endpoint speaks HTTPS on its public port. Use a real
+    // TCP handshake as the fallback instead of inventing a number.
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  try {
+    return (await bridge.measureLatency?.(host, server.port, timeoutMs)) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function initialLogs(): LogEntry[] {
@@ -130,6 +167,84 @@ function initialLogs(): LogEntry[] {
       message: `RageNet ${Constants.expoConfig?.version ?? '0.1.29'} · native VPN bridge`,
     },
   ];
+}
+
+async function pingTargets(
+  get: () => AppState,
+  set: (partial: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void,
+  targets: ServerNode[],
+): Promise<void> {
+  if (targets.length === 0 || get().isPinging || get().isSwitching) return;
+  const bridge = getVpnBridge();
+  const wasConnected = get().vpnStatus.state === 'connected';
+  let paused = false;
+
+  set({ isPinging: true });
+  if (wasConnected) {
+    suppressVpnStatus = true;
+    try {
+      await bridge.stop();
+      paused = true;
+    } catch (error) {
+      get().addLog(
+        error instanceof Error ? error.message : 'Не удалось приостановить туннель для пинга',
+        'warn',
+      );
+    }
+  }
+
+  try {
+    const measured = await Promise.all(
+      targets.map(async (server) => {
+        const latency = await probeLatency(bridge, server);
+        if (latency != null) {
+          set((state) => ({
+            servers: state.servers.map((entry) =>
+              entry.id === server.id ? { ...entry, latencyMs: latency } : entry,
+            ),
+          }));
+        }
+        return { ...server, latencyMs: latency ?? undefined };
+      }),
+    );
+
+    if (targets.length > 1) {
+      const subscription = get().subscription;
+      set({
+        servers: measured,
+        subscription: subscription ? { ...subscription, servers: measured } : null,
+      });
+    }
+  } finally {
+    if (paused) {
+      try {
+        const current =
+          get().servers.find((server) => server.id === get().selectedServerId) ?? get().servers[0];
+        if (current) {
+          const config = buildXrayConfig(get().servers, {
+            selectedServerId: current.id,
+            routingMode: get().settings.routingMode,
+            logLevel: get().settings.logLevel,
+          });
+          await bridge.start({
+            config: JSON.stringify(config),
+            killSwitch: get().settings.killSwitch,
+          });
+          const status = await bridge.getStatus();
+          set({ vpnStatus: status });
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Не удалось восстановить туннель';
+        get().addLog(message, 'error');
+        get().showToast(message);
+      }
+    }
+    suppressVpnStatus = false;
+    set({ isPinging: false });
+  }
+
+  const answered = get().servers.filter((server) => server.latencyMs != null).length;
+  get().addLog(`Пинг завершён · ${answered}/${get().servers.length} серверов`);
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -146,6 +261,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   toast: null,
   isRefreshing: false,
   isPinging: false,
+  isSwitching: false,
 
   addLog: (message, level = 'info') =>
     set((state) => ({
@@ -160,32 +276,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       ],
     })),
 
-  loadDemo: () => {
-    const subscription = createDemoSubscription();
-    if (get().vpnStatus.state !== 'disconnected') {
-      void getVpnBridge()
-        .stop()
-        .catch(() => undefined);
-    }
-    set({
-      subscription,
-      servers: subscription.servers,
-      selectedServerId: subscription.servers[0]?.id ?? null,
-      vpnStatus: { state: 'disconnected' },
-      screen: 'home',
-      sheet: null,
-      logs: initialLogs(),
-    });
-    get().addLog(`Демо-подписка загружена · ${subscription.servers.length} сервера`);
-  },
-
   addSubscription: async (input) => {
     const trimmed = input.trim();
-    if (!trimmed || trimmed === 'demo' || trimmed.startsWith('demo://')) {
-      get().loadDemo();
-      return;
-    }
-
+    if (!trimmed) return;
     let parsed: ParsedSubscription;
     if (/^https?:\/\//i.test(trimmed)) {
       get().addLog('Загрузка подписки…');
@@ -230,16 +323,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         });
         get().addLog('Подписка обновлена');
       } else {
-        const updated = {
-          ...subscription,
-          updatedAt: Date.now(),
-          meta: {
-            ...subscription.meta,
-            downloadBytes: (subscription.meta.downloadBytes ?? 0) + 18 * 1024 ** 2,
-          },
-        };
-        set({ subscription: updated });
-        get().addLog('Демо-подписка обновлена');
+        set({ subscription: { ...subscription, updatedAt: Date.now() } });
+        get().addLog('Локальная подписка обновлена');
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось обновить подписку';
@@ -251,44 +336,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   pingServers: async () => {
-    const { servers } = get();
-    if (servers.length === 0) return;
-    const bridge = getVpnBridge();
-    if (!bridge.measureLatency) {
-      get().addLog('Реальный пинг недоступен на этой платформе', 'warn');
-      return;
-    }
+    await pingTargets(get, set, get().servers);
+  },
 
-    set({
-      isPinging: true,
-      servers: servers.map((server) => ({ ...server, latencyMs: undefined })),
-    });
-    const measured = await Promise.all(
-      servers.map(async (server) => {
-        let latency: number | null = null;
-        try {
-          latency = (await bridge.measureLatency?.(server.host, server.port)) ?? null;
-        } catch {
-          latency = null;
-        }
-        if (latency != null) {
-          set((state) => ({
-            servers: state.servers.map((entry) =>
-              entry.id === server.id ? { ...entry, latencyMs: latency } : entry,
-            ),
-          }));
-        }
-        return { ...server, latencyMs: latency ?? undefined };
-      }),
-    );
-    const subscription = get().subscription;
-    set({
-      isPinging: false,
-      servers: measured,
-      subscription: subscription ? { ...subscription, servers: measured } : null,
-    });
-    const answered = measured.filter((server) => server.latencyMs != null).length;
-    get().addLog(`Пинг завершён · ${answered}/${measured.length} серверов`);
+  pingSelectedServer: async () => {
+    const selected =
+      get().servers.find((server) => server.id === get().selectedServerId) ?? get().servers[0];
+    if (!selected) return;
+    await pingTargets(get, set, [selected]);
   },
 
   loadNativeLogs: async () => {
@@ -330,8 +385,41 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectServer: (id) => {
     const server = get().servers.find((entry) => entry.id === id);
     if (!server) return;
+    if (get().isPinging || get().isSwitching) return;
+
+    const wasConnected = get().vpnStatus.state === 'connected';
     set({ selectedServerId: id, sheet: null });
     get().addLog(`Выбран сервер · ${server.name}`);
+
+    if (!wasConnected) return;
+
+    set({ isSwitching: true, vpnStatus: { state: 'connecting', since: Date.now() } });
+    void (async () => {
+      const bridge = getVpnBridge();
+      suppressVpnStatus = true;
+      try {
+        await bridge.stop();
+        const config = buildXrayConfig(get().servers, {
+          selectedServerId: id,
+          routingMode: get().settings.routingMode,
+          logLevel: get().settings.logLevel,
+        });
+        await bridge.start({
+          config: JSON.stringify(config),
+          killSwitch: get().settings.killSwitch,
+        });
+        const status = await bridge.getStatus();
+        set({ vpnStatus: status });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Не удалось переключить локацию';
+        get().addLog(message, 'error');
+        get().showToast(message);
+        set({ vpnStatus: { state: 'error', error: message } });
+      } finally {
+        suppressVpnStatus = false;
+        set({ isSwitching: false });
+      }
+    })();
   },
 
   deleteSubscription: () => {
@@ -353,7 +441,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   initVpn: () => {
     if (vpnUnsubscribe) return;
     const bridge = getVpnBridge();
-    vpnUnsubscribe = bridge.subscribe((status) => set({ vpnStatus: status }));
+    vpnUnsubscribe = bridge.subscribe((status) => {
+      if (!suppressVpnStatus) set({ vpnStatus: status });
+    });
     bridge
       .getStatus()
       .then((status) => set({ vpnStatus: status }))
@@ -367,7 +457,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().showToast('Сначала добавьте ключ подписки');
       return;
     }
-    if (state === 'connecting' || state === 'disconnecting') return;
+    if (state === 'connecting' || state === 'disconnecting' || get().isPinging || get().isSwitching)
+      return;
 
     const selected =
       get().servers.find((server) => server.id === get().selectedServerId) ?? get().servers[0];

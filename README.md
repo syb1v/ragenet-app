@@ -2,7 +2,7 @@
 
 Кроссплатформенный клиент RageNet на React Native (мобильные) и Tauri + React Native Web (десктоп). Ядро — Xray-core через `libXray`, с встроенным TUN-инбаундом.
 
-> **Статус: Phase 0, версия 0.2.1.** Это рабочий UI-прототип и фундамент проекта, а не готовый VPN-клиент. Реальный туннель, подпись iOS и привилегированный desktop-helper ещё не подключены. План и даты — в [docs/ROADMAP.md](docs/ROADMAP.md), версии — в [docs/VERSIONING.md](docs/VERSIONING.md).
+> **Статус: Phase 0, версия 0.3.0.** Это рабочий UI-прототип и фундамент проекта, а не готовый VPN-клиент. Реальный туннель, подпись iOS и привилегированный desktop-helper ещё не подключены. План и даты — в [docs/ROADMAP.md](docs/ROADMAP.md), версии — в [docs/VERSIONING.md](docs/VERSIONING.md).
 
 ## Что уже работает
 
@@ -34,15 +34,6 @@ pnpm test
 pnpm typecheck
 pnpm build:web
 ```
-
-Демо-режим без подписки:
-
-```
-http://localhost:8081/?demo=1
-http://localhost:8081/?demo=1&screen=settings
-```
-
-На мобильном в онбординге есть ссылка «Посмотреть демо». В окне добавления ключа можно ввести `demo`.
 
 ## Структура
 

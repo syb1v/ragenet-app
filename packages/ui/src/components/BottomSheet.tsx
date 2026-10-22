@@ -4,6 +4,7 @@ import {
   Animated,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   StyleSheet,
@@ -25,17 +26,53 @@ export function BottomSheet({ visible, onClose, children, header, style }: Botto
   const insets = useSafeAreaInsets();
   const [mounted, setMounted] = useState(visible);
   const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const dragY = useRef(new Animated.Value(0)).current;
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        gesture.dy > 10 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+      onPanResponderMove: (_, gesture) => {
+        dragY.setValue(Math.max(0, gesture.dy));
+      },
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dy > 110 || gesture.vy > 1.1) {
+          dragY.setValue(0);
+          closeRef.current();
+        } else {
+          Animated.spring(dragY, {
+            toValue: 0,
+            damping: 22,
+            stiffness: 260,
+            useNativeDriver: false,
+          }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(dragY, {
+          toValue: 0,
+          damping: 22,
+          stiffness: 260,
+          useNativeDriver: false,
+        }).start();
+      },
+    }),
+  ).current;
 
   useEffect(() => {
     if (visible) {
       setMounted(true);
+      dragY.setValue(0);
       progress.setValue(0);
       Animated.spring(progress, {
         toValue: 1,
         damping: 24,
         stiffness: 260,
         mass: 0.82,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start();
       return;
     }
@@ -44,7 +81,7 @@ export function BottomSheet({ visible, onClose, children, header, style }: Botto
     Animated.timing(progress, {
       toValue: 0,
       duration: 220,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start(({ finished }) => {
       if (finished) setMounted(false);
     });
@@ -81,9 +118,13 @@ export function BottomSheet({ visible, onClose, children, header, style }: Botto
           <Animated.View
             style={[
               styles.sheet,
-              { paddingBottom: Math.max(insets.bottom, 16), transform: [{ translateY }] },
+              {
+                paddingBottom: Math.max(insets.bottom, 16),
+                transform: [{ translateY: Animated.add(translateY, dragY) }],
+              },
               style,
             ]}
+            {...panResponder.panHandlers}
             testID="bottom-sheet"
           >
             <View style={styles.handle} />

@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-22
+
+### Added
+
+- Anchored native-style menu for the subscription actions.
+- Swipe-to-dismiss server selection sheet.
+- QR camera scanner for subscription links.
+- HTTP GET latency probe with TCP fallback and latency colour thresholds.
+- Selected-server ping from the main screen.
+- Automatic tunnel restart when changing the selected location.
+- Silent pause/resume around latency probes while connected.
+- English log levels: ALL / INFO / WARN / ERROR.
+
+### Changed
+
+- Compact home composition: connection status stays under the sphere while
+  traffic, expiry, location and support controls are pinned toward the bottom.
+- Enlarged launcher logo and in-app RageNet mark.
+- More immediate and stronger sphere vibration.
+- Removed the demo subscription and demo mode.
+- Full Xray configs receive an explicit TUN fallback route.
+
+### Fixed
+
+- Tunnel restoration after location changes and latency probes.
+- QR permission flow on native platforms.
+
 ## [0.2.1] - 2026-10-22
 
 ### Changed

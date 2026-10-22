@@ -64,7 +64,6 @@ export function RageNetApp() {
   const isDesktop = Platform.OS === 'web' && width >= 900;
   const subscription = useAppStore((state) => state.subscription);
   const screen = useAppStore((state) => state.screen);
-  const loadDemo = useAppStore((state) => state.loadDemo);
   const navigate = useAppStore((state) => state.navigate);
   const addSubscription = useAppStore((state) => state.addSubscription);
   const initVpn = useAppStore((state) => state.initVpn);
@@ -85,14 +84,11 @@ export function RageNetApp() {
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get('demo') === '1' && !useAppStore.getState().subscription) {
-      loadDemo();
-    }
     const target = params.get('screen');
     if (target === 'settings' || target === 'logs') {
       navigate(target);
     }
-  }, [loadDemo, navigate]);
+  }, [navigate]);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;

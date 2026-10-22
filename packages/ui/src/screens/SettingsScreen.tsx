@@ -8,7 +8,7 @@ import { Header } from '../components/Header';
 import { IconButton } from '../components/IconButton';
 import { PlatformIcon } from '../components/PlatformIcon';
 import { Screen } from '../components/Screen';
-import { DEMO_SUPPORT_URL } from '../lib/demo';
+import { TELEGRAM_SUPPORT_URL } from '../lib/links';
 import { todayLabel } from '../lib/format';
 import { tapHaptic } from '../lib/haptics';
 import { TELEGRAM_BOT_URL } from '../lib/links';
@@ -71,12 +71,9 @@ export function SettingsScreen({ onClose }: SettingsScreenProps = {}) {
   const openSheet = useAppStore((state) => state.openSheet);
   const showToast = useAppStore((state) => state.showToast);
   const subscription = useAppStore((state) => state.subscription);
-  const supportUrl = subscription?.meta.supportUrl ?? DEMO_SUPPORT_URL;
-  const appVersion = Constants.expoConfig?.version ?? '0.1.7';
-  const buildNumber =
-    Platform.OS === 'ios'
-      ? (Constants.expoConfig?.ios?.buildNumber ?? '1')
-      : String(Constants.expoConfig?.android?.versionCode ?? '1');
+  const supportUrl = subscription?.meta.supportUrl ?? TELEGRAM_SUPPORT_URL;
+  const appVersion = '0.3.0';
+  const buildNumber = '3';
 
   const openSupport = async () => {
     try {

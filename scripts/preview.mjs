@@ -26,11 +26,22 @@ page.on('console', (message) => {
 });
 page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
 
+const TEST_LINK =
+  'vless://11111111-1111-1111-1111-111111111111@de.ragenet.test:443?security=tls&sni=de.ragenet.test&type=ws&path=%2Fws#%F0%9F%87%A9%F0%9F%87%AA%20%D0%93%D0%B5%D1%80%D0%BC%D0%B0%D0%BD%D0%B8%D1%8F';
+
+async function addTestSubscription() {
+  await page.getByText('Вручную', { exact: true }).click();
+  await page.waitForTimeout(300);
+  await page.getByPlaceholder('https://...').fill(TEST_LINK);
+  await page.getByText('Добавить подписку', { exact: true }).click();
+  await page.waitForTimeout(800);
+}
+
 await page.goto(baseUrl, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1800);
 await page.screenshot({ path: path.join(outputDir, 'onboarding.png') });
 
-await page.getByText('Посмотреть демо').click();
+await addTestSubscription();
 await page.waitForTimeout(1200);
 await page.screenshot({ path: path.join(outputDir, 'home.png') });
 
@@ -118,11 +129,11 @@ await page.waitForTimeout(600);
 const deleted = await page.getByText('Добро пожаловать', { exact: true }).isVisible();
 await page.screenshot({ path: path.join(outputDir, 'after-delete.png') });
 
-// Reload the demo and verify press-and-hold from the disconnected state.
-await page.getByText('Посмотреть демо').click();
+// Add the test subscription again and verify press-and-hold from the disconnected state.
+await addTestSubscription();
 await page.waitForTimeout(1000);
 const holdBox = await page.getByTestId('particle-sphere').boundingBox();
-if (!holdBox) throw new Error('RageNet sphere not found after demo reload');
+if (!holdBox) throw new Error('RageNet sphere not found after subscription reload');
 await page.mouse.move(holdBox.x + holdBox.width / 2, holdBox.y + holdBox.height / 2);
 await page.mouse.down();
 await page.waitForTimeout(8400);

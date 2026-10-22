@@ -50,11 +50,13 @@ export function ServersSheet() {
           const pingColor =
             ping == null
               ? colors.text3
-              : ping < 60
+              : ping <= 100
                 ? colors.green
-                : ping < 110
+                : ping <= 200
                   ? colors.amber
-                  : colors.danger;
+                  : ping <= 300
+                    ? '#FB923C'
+                    : colors.danger;
 
           return (
             <Pressable

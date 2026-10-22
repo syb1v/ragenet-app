@@ -1,6 +1,7 @@
 import { colors, fonts, radii } from '@ragenet/design';
 import * as Clipboard from 'expo-clipboard';
-import { useEffect, useState } from 'react';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -32,11 +33,16 @@ export function AddKeySheet() {
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scanLocked, setScanLocked] = useState(false);
+  const scanLockRef = useRef(false);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   useEffect(() => {
     if (!visible) return;
     setError(null);
     setLoading(false);
+    setScanLocked(false);
+    scanLockRef.current = false;
     if (addMode === 'clipboard') {
       Clipboard.getStringAsync()
         .then((clipboard) => {
@@ -84,6 +90,24 @@ export function AddKeySheet() {
     }
   };
 
+  const submitScanned = async (data: string) => {
+    if (scanLockRef.current) return;
+    scanLockRef.current = true;
+    setScanLocked(true);
+    setError(null);
+    try {
+      await addSubscription(data);
+      closeSheet();
+      showToast('Подписка добавлена');
+    } catch (scanError) {
+      const message =
+        scanError instanceof Error ? scanError.message : 'Не удалось прочитать QR-код';
+      setError(message);
+      scanLockRef.current = false;
+      setScanLocked(false);
+    }
+  };
+
   const header = (
     <View style={styles.header}>
       <Pressable
@@ -115,16 +139,39 @@ export function AddKeySheet() {
       {addMode === 'qr' ? (
         <View style={styles.qrContent}>
           <View style={styles.qrFrame}>
+            {cameraPermission?.granted ? (
+              <CameraView
+                style={styles.camera}
+                facing="back"
+                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                onBarcodeScanned={({ data }) => {
+                  if (!scanLocked) void submitScanned(data);
+                }}
+              />
+            ) : (
+              <View style={styles.cameraPermission}>
+                <PlatformIcon name="qr" size={54} color={colors.text2} />
+                <Text style={styles.cameraPermissionText}>
+                  Разрешите доступ к камере, чтобы сканировать QR-код подписки.
+                </Text>
+                <Button
+                  label="Разрешить камеру"
+                  onPress={() => void requestCameraPermission()}
+                  variant="secondary"
+                  style={styles.cameraPermissionButton}
+                />
+              </View>
+            )}
             <View style={[styles.corner, styles.cornerTopLeft]} />
             <View style={[styles.corner, styles.cornerTopRight]} />
             <View style={[styles.corner, styles.cornerBottomLeft]} />
             <View style={[styles.corner, styles.cornerBottomRight]} />
-            <PlatformIcon name="qr" size={58} color={colors.text2} />
           </View>
           <Text style={styles.qrTitle}>Наведите камеру на QR-код подписки</Text>
           <Text style={styles.qrHint}>
-            Сканер камеры появится в следующей сборке. Пока можно вставить ссылку из буфера.
+            Код будет добавлен автоматически. Если камера недоступна, вставьте ссылку из буфера.
           </Text>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
           <Button
             label="Вставить из буфера"
             onPress={paste}
@@ -154,9 +201,7 @@ export function AddKeySheet() {
             style={[styles.input, webInputStyle]}
             value={value}
           />
-          <Text style={styles.note}>
-            Remnawave-ссылка, base64 или полный Xray-конфиг. Для демо введите demo.
-          </Text>
+          <Text style={styles.note}>Remnawave-ссылка, base64 или полный Xray-конфиг.</Text>
           <Pressable
             accessibilityRole="button"
             onPress={paste}
@@ -278,6 +323,28 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     marginTop: 6,
     paddingHorizontal: 2,
+  },
+  camera: {
+    flex: 1,
+    width: '100%',
+  },
+  cameraPermission: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  cameraPermissionText: {
+    color: colors.text2,
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
+  },
+  cameraPermissionButton: {
+    height: 40,
+    minWidth: 170,
   },
   qrContent: {
     alignItems: 'center',

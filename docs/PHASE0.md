@@ -1,6 +1,6 @@
 # Phase 0 — foundation
 
-**Status:** done · **App version:** 0.2.1 · **Next:** Phase 1 (Android VPN MVP)
+**Status:** done · **App version:** 0.3.0 · **Next:** Phase 1 (Android VPN MVP)
 
 See [ROADMAP.md](ROADMAP.md) for dates and [VERSIONING.md](VERSIONING.md) for
 release rules.
@@ -17,7 +17,6 @@ release rules.
 - [x] Gentle drag feedback and full press/release lifecycle.
 - [x] Compact anchored subscription menu (QR, share, copy, delete).
 - [x] Tap / stationary hold actions; drag is play-only.
-- [x] Demo mode (`?demo=1` on web, `demo` as a key).
 - [x] Remnawave subscription parser (base64, plain, JSON, full config).
 - [x] Metadata parser (headers + body lines).
 - [x] Xray config builder with TUN inbound, stats, routing presets.

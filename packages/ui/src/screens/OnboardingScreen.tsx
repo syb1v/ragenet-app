@@ -1,6 +1,6 @@
 import { colors, fonts } from '@ragenet/design';
 import * as Clipboard from 'expo-clipboard';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { BrandLockup } from '../components/BrandLockup';
 import { Button } from '../components/Button';
 import { Pill } from '../components/Pill';
@@ -10,7 +10,6 @@ import { useAppStore } from '../store/useAppStore';
 
 export function OnboardingScreen() {
   const openSheet = useAppStore((state) => state.openSheet);
-  const loadDemo = useAppStore((state) => state.loadDemo);
   const showToast = useAppStore((state) => state.showToast);
 
   const pasteFromClipboard = async () => {
@@ -62,12 +61,6 @@ export function OnboardingScreen() {
       </View>
 
       <View style={styles.spacer} />
-
-      <View style={styles.footer}>
-        <Pressable accessibilityRole="button" onPress={loadDemo} hitSlop={12}>
-          <Text style={styles.demo}>Посмотреть демо</Text>
-        </Pressable>
-      </View>
     </Screen>
   );
 }
@@ -110,16 +103,5 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     borderRadius: 18,
     height: 62,
-  },
-  footer: {
-    alignItems: 'center',
-    paddingBottom: 12,
-    paddingTop: 8,
-  },
-  demo: {
-    color: colors.text3,
-    fontFamily: fonts.medium,
-    fontSize: 13,
-    textDecorationLine: 'underline',
   },
 });

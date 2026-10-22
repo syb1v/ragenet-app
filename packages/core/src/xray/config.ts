@@ -216,6 +216,18 @@ export function sanitizeFullConfig(input: JsonObject, options: BuildXrayConfigOp
   if (!rules.some((rule) => Array.isArray(rule.inboundTag) && rule.inboundTag.includes('api'))) {
     rules.unshift({ type: 'field', inboundTag: ['api'], outboundTag: 'api' });
   }
+  // A full config may have been written for its own local proxy inbounds and
+  // never mention the TUN inbound we inject. Give TUN an explicit route so
+  // custom DNS/routing rules cannot accidentally leave device traffic
+  // unhandled. Explicit user rules still win because this is prepended only
+  // when no TUN rule exists.
+  const proxyTag = proxyOutboundTag(config);
+  if (
+    proxyTag &&
+    !rules.some((rule) => Array.isArray(rule.inboundTag) && rule.inboundTag.includes('tun'))
+  ) {
+    rules.push({ type: 'field', inboundTag: ['tun'], outboundTag: proxyTag });
+  }
   if (rules.length === 0) {
     const tag = proxyOutboundTag(config);
     if (tag) rules.push({ type: 'field', network: 'tcp,udp', outboundTag: tag });

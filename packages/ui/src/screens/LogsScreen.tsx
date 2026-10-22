@@ -13,10 +13,10 @@ import { useAppStore, type LogEntry } from '../store/useAppStore';
 type LogFilter = 'all' | LogEntry['level'];
 
 const FILTERS: { id: LogFilter; label: string }[] = [
-  { id: 'all', label: 'Все' },
-  { id: 'info', label: 'Инфо' },
-  { id: 'warn', label: 'Варн' },
-  { id: 'error', label: 'Еррор' },
+  { id: 'all', label: 'ALL' },
+  { id: 'info', label: 'INFO' },
+  { id: 'warn', label: 'WARN' },
+  { id: 'error', label: 'ERROR' },
 ];
 
 function formatTime(timestamp: number): string {

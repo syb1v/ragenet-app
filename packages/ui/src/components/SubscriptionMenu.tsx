@@ -2,7 +2,6 @@ import { colors, fonts, radii } from '@ragenet/design';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
-  ActionSheetIOS,
   Animated,
   Platform,
   Pressable,
@@ -39,39 +38,6 @@ export function SubscriptionMenu() {
     }).start();
   }, [anchor, progress]);
 
-  useEffect(() => {
-    if (Platform.OS !== 'ios' || !anchor || !subscription) return;
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options: [
-          'Отмена',
-          'Показать QR-код',
-          'Поделиться',
-          'Скопировать ссылку',
-          'Удалить подписку',
-        ],
-        cancelButtonIndex: 0,
-        destructiveButtonIndex: 4,
-        title: subscription.meta.title ?? 'Подписка',
-      },
-      (index) => {
-        closeMenu();
-        if (index === 1) openSheet('qr');
-        if (index === 2) {
-          Share.share({ message: subscription.url, url: subscription.url }).catch(() =>
-            showToast('Не удалось поделиться ссылкой'),
-          );
-        }
-        if (index === 3) {
-          Clipboard.setStringAsync(subscription.url)
-            .then(() => showToast('Ссылка скопирована'))
-            .catch(() => showToast('Не удалось скопировать ссылку'));
-        }
-        if (index === 4) openSheet('delete');
-      },
-    );
-  }, [anchor, closeMenu, openSheet, showToast, subscription]);
-
   const position = useMemo(() => {
     if (!anchor) return { left: 0, top: 0 };
     const left = Math.max(
@@ -85,7 +51,6 @@ export function SubscriptionMenu() {
   }, [anchor, windowHeight, windowWidth]);
 
   if (!anchor || !subscription) return null;
-  if (Platform.OS === 'ios') return null;
 
   const copy = async () => {
     closeMenu();
