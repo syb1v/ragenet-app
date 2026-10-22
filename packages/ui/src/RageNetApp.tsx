@@ -66,13 +66,16 @@ export function RageNetApp() {
   const screen = useAppStore((state) => state.screen);
   const navigate = useAppStore((state) => state.navigate);
   const addSubscription = useAppStore((state) => state.addSubscription);
+  const hydrate = useAppStore((state) => state.hydrate);
   const initVpn = useAppStore((state) => state.initVpn);
+  const isHydrated = useAppStore((state) => state.isHydrated);
   const showToast = useAppStore((state) => state.showToast);
   const openSheet = useAppStore((state) => state.openSheet);
 
   useEffect(() => {
+    void hydrate();
     initVpn();
-  }, [initVpn]);
+  }, [hydrate, initVpn]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
@@ -82,16 +85,16 @@ export function RageNetApp() {
   }, []);
 
   useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    if (!isHydrated || Platform.OS !== 'web' || typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const target = params.get('screen');
     if (target === 'settings' || target === 'logs') {
       navigate(target);
     }
-  }, [navigate]);
+  }, [isHydrated, navigate]);
 
   useEffect(() => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS === 'web' || !isHydrated) return;
 
     const handleUrl = (url: string | null | undefined) => {
       if (!url) return;
@@ -109,9 +112,9 @@ export function RageNetApp() {
       .catch(() => undefined);
     const listener = Linking.addEventListener('url', (event) => handleUrl(event.url));
     return () => listener.remove();
-  }, [addSubscription, showToast]);
+  }, [addSubscription, isHydrated, showToast]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || !isHydrated) {
     return (
       <View style={styles.loading}>
         <RageNetMark size={42} color={colors.brandStrong} />

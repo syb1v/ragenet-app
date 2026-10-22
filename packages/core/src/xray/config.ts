@@ -295,6 +295,38 @@ export function sanitizeFullConfig(input: JsonObject, options: BuildXrayConfigOp
   };
 }
 
+export interface PingBatchConfig {
+  xrayJson: string;
+  outboundTag: string;
+}
+
+/**
+ * Build the isolated Xray config used by libXray's pingBatch. It contains only
+ * outbounds: no TUN, DNS or routing, because the temporary core is created
+ * solely to probe one location through its own proxy.
+ */
+export function buildPingBatchConfig(server: ServerNode): PingBatchConfig | null {
+  if (server.fullConfig) {
+    try {
+      const fullConfig = JSON.parse(server.fullConfig) as JsonObject;
+      const tag = proxyOutboundTag(fullConfig);
+      return tag ? { xrayJson: server.fullConfig, outboundTag: tag } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    const outbound = buildOutbound(server);
+    return {
+      xrayJson: JSON.stringify({ outbounds: [outbound] }),
+      outboundTag: String(outbound.tag),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function injectTunFd(config: XrayConfig, fd: number): XrayConfig {
   return {
     ...config,

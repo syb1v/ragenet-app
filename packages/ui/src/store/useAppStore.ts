@@ -4,6 +4,7 @@ import {
   generateHwid,
   parseSubscription,
   subscriptionFromParsed,
+  buildPingBatchConfig,
   buildXrayConfig,
   type AppSettings,
   type ParsedSubscription,
@@ -11,10 +12,11 @@ import {
   type Subscription,
   type VpnStatus,
 } from '@ragenet/core';
-import { createVpnBridge, type VpnBridge } from '@ragenet/vpn';
+import { createVpnBridge, type PingBatchConfig, type VpnBridge } from '@ragenet/vpn';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
+import { clearSession, loadSession, saveSession } from '../lib/sessionStorage';
 
 export type Screen = 'home' | 'settings' | 'logs';
 export type Sheet = 'addKey' | 'servers' | 'reset' | 'qr' | 'delete' | null;
@@ -49,7 +51,9 @@ interface AppState {
   isRefreshing: boolean;
   isPinging: boolean;
   isSwitching: boolean;
+  isHydrated: boolean;
 
+  hydrate: () => Promise<void>;
   addSubscription: (input: string) => Promise<void>;
   refreshSubscription: () => Promise<void>;
   pingServers: () => Promise<void>;
@@ -119,7 +123,7 @@ export const DEVICE = {
   os: platformName(),
   osVersion: Platform.Version?.toString() ?? 'unknown',
   model: deviceModel(),
-  appVersion: Constants.expoConfig?.version ?? '0.3.8',
+  appVersion: Constants.expoConfig?.version ?? '0.3.9',
 };
 
 let vpnBridge: VpnBridge | null = null;
@@ -155,6 +159,8 @@ async function waitForVpnState(
 
 const LATENCY_PROBE_URL = 'https://www.gstatic.com/generate_204';
 const LATENCY_TIMEOUT_MS = 4000;
+const PING_BATCH_SIZE = 5;
+const PING_BATCH_TIMEOUT_SECONDS = 5;
 
 function latencyProbeUrl(): string {
   // Defeat caches and proxy response caches; the request itself must still
@@ -226,6 +232,38 @@ async function probeTunnelLatency(
  * unreachable or placeholder location stays empty instead of inheriting the
  * selected server's internet latency.
  */
+function withPingInterface(xrayJson: string, interfaceName: string | null): string {
+  if (!interfaceName) return xrayJson;
+  try {
+    const config = JSON.parse(xrayJson) as {
+      outbounds?: Array<Record<string, unknown>>;
+    };
+    if (!Array.isArray(config.outbounds)) return xrayJson;
+    config.outbounds = config.outbounds.map((outbound) => {
+      const protocol = String(outbound.protocol ?? '').toLowerCase();
+      if (['freedom', 'blackhole', 'dns', 'loopback'].includes(protocol)) return outbound;
+      const streamSettings =
+        outbound.streamSettings && typeof outbound.streamSettings === 'object'
+          ? (outbound.streamSettings as Record<string, unknown>)
+          : {};
+      const sockopt =
+        streamSettings.sockopt && typeof streamSettings.sockopt === 'object'
+          ? (streamSettings.sockopt as Record<string, unknown>)
+          : {};
+      return {
+        ...outbound,
+        streamSettings: {
+          ...streamSettings,
+          sockopt: { ...sockopt, interface: interfaceName },
+        },
+      };
+    });
+    return JSON.stringify(config);
+  } catch {
+    return xrayJson;
+  }
+}
+
 async function probeEntryLatency(
   bridge: VpnBridge,
   server: ServerNode,
@@ -237,6 +275,14 @@ async function probeEntryLatency(
   } catch {
     return null;
   }
+}
+
+function persistSession(subscription: Subscription | null, selectedServerId: string | null): void {
+  if (!subscription) {
+    void clearSession().catch(() => undefined);
+    return;
+  }
+  void saveSession({ subscription, selectedServerId }).catch(() => undefined);
 }
 
 function initialLogs(): LogEntry[] {
@@ -268,30 +314,80 @@ async function pingTargets(
     ),
   });
 
+  const pingInterface = bridge.getPingInterface?.() ?? null;
+  const batchItems = targets
+    .map((server) => ({ server, config: buildPingBatchConfig(server) }))
+    .filter((item): item is { server: ServerNode; config: PingBatchConfig } => item.config != null)
+    .map((item) => ({
+      server: item.server,
+      config: {
+        ...item.config,
+        xrayJson: withPingInterface(item.config.xrayJson, pingInterface),
+      },
+    }));
+  let usedBatch = false;
+  let batchComplete = true;
+
   try {
-    const measured = await Promise.all(
-      targets.map(async (server) => {
-        const latency =
-          throughTunnel && server.id === selectedId
-            ? await probeTunnelLatency(bridge)
-            : await probeEntryLatency(bridge, server);
-        if (latency != null) {
-          set((state) => ({
-            servers: state.servers.map((entry) =>
-              entry.id === server.id ? { ...entry, latencyMs: latency } : entry,
-            ),
-          }));
+    if (bridge.pingBatch && batchItems.length > 0) {
+      try {
+        for (let offset = 0; offset < batchItems.length; offset += PING_BATCH_SIZE) {
+          const group = batchItems.slice(offset, offset + PING_BATCH_SIZE);
+          const results = await bridge.pingBatch(
+            group.map((item) => item.config),
+            LATENCY_PROBE_URL,
+            PING_BATCH_TIMEOUT_SECONDS,
+          );
+          if (!results || results.length !== group.length) {
+            batchComplete = false;
+            break;
+          }
+          usedBatch = true;
+          results.forEach((result, index) => {
+            const item = group[index];
+            if (!item || !result.success || !Number.isFinite(result.delay) || result.delay <= 0) {
+              return;
+            }
+            set((state) => ({
+              servers: state.servers.map((entry) =>
+                entry.id === item.server.id ? { ...entry, latencyMs: result.delay } : entry,
+              ),
+            }));
+          });
         }
-        return { ...server, latencyMs: latency ?? undefined };
-      }),
-    );
+      } catch {
+        batchComplete = false;
+      }
+    }
+
+    if (!usedBatch || !batchComplete) {
+      const measured = await Promise.all(
+        targets.map(async (server) => {
+          const latency =
+            throughTunnel && server.id === selectedId
+              ? await probeTunnelLatency(bridge)
+              : await probeEntryLatency(bridge, server);
+          if (latency != null) {
+            set((state) => ({
+              servers: state.servers.map((entry) =>
+                entry.id === server.id ? { ...entry, latencyMs: latency } : entry,
+              ),
+            }));
+          }
+          return { ...server, latencyMs: latency ?? undefined };
+        }),
+      );
+      const nextServers = get().servers.map((server) => {
+        const result = measured.find((entry) => entry.id === server.id);
+        return result ?? server;
+      });
+      set({ servers: nextServers });
+      usedBatch = false;
+    }
+
     const subscription = get().subscription;
-    const nextServers = get().servers.map((server) => {
-      const result = measured.find((entry) => entry.id === server.id);
-      return result ?? server;
-    });
+    const nextServers = get().servers;
     set({
-      servers: nextServers,
       subscription: subscription ? { ...subscription, servers: nextServers } : null,
     });
   } finally {
@@ -304,7 +400,11 @@ async function pingTargets(
   }).length;
   get().addLog(
     `Пинг завершён · ${answered}/${targets.length} локаций · ${
-      throughTunnel ? 'через туннель' : 'напрямую'
+      usedBatch
+        ? `через прокси, пачки по ${PING_BATCH_SIZE}`
+        : throughTunnel
+          ? 'через туннель'
+          : 'напрямую'
     }`,
   );
 }
@@ -324,6 +424,31 @@ export const useAppStore = create<AppState>((set, get) => ({
   isRefreshing: false,
   isPinging: false,
   isSwitching: false,
+  isHydrated: false,
+
+  hydrate: async () => {
+    if (get().isHydrated) return;
+    try {
+      const saved = await loadSession();
+      if (saved) {
+        set({
+          subscription: saved.subscription,
+          servers: saved.subscription.servers,
+          selectedServerId: saved.selectedServerId,
+          screen: 'home',
+          sheet: null,
+        });
+        get().addLog('Подписка восстановлена');
+      }
+    } catch (error) {
+      get().addLog(
+        error instanceof Error ? error.message : 'Не удалось восстановить подписку',
+        'warn',
+      );
+    } finally {
+      set({ isHydrated: true });
+    }
+  },
 
   addLog: (message, level = 'info') =>
     set((state) => ({
@@ -363,6 +488,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       sheet: null,
       vpnStatus: { state: 'disconnected' },
     });
+    persistSession(subscription, subscription.servers[0]?.id ?? null);
     get().addLog(`Подписка добавлена · ${subscription.servers.length} сервера`);
   },
 
@@ -375,17 +501,21 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (subscription.url.startsWith('http')) {
         const result = await fetchSubscription(subscription.url, { device: DEVICE });
         const updated = subscriptionFromParsed(subscription.id, subscription.url, result.parsed);
+        const selectedServerId =
+          updated.servers.find((server) => server.id === get().selectedServerId)?.id ??
+          updated.servers[0]?.id ??
+          null;
         set({
           subscription: updated,
           servers: updated.servers,
-          selectedServerId:
-            updated.servers.find((server) => server.id === get().selectedServerId)?.id ??
-            updated.servers[0]?.id ??
-            null,
+          selectedServerId,
         });
+        persistSession(updated, selectedServerId);
         get().addLog('Подписка обновлена');
       } else {
-        set({ subscription: { ...subscription, updatedAt: Date.now() } });
+        const updated = { ...subscription, updatedAt: Date.now() };
+        set({ subscription: updated });
+        persistSession(updated, get().selectedServerId);
         get().addLog('Локальная подписка обновлена');
       }
     } catch (error) {
@@ -451,6 +581,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const wasConnected = get().vpnStatus.state === 'connected';
     set({ selectedServerId: id, sheet: null });
+    persistSession(get().subscription, id);
     get().addLog(`Выбран сервер · ${server.name}`);
 
     if (!wasConnected) return;
@@ -498,6 +629,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       sheet: null,
       subscriptionMenuAnchor: null,
     });
+    persistSession(null, null);
     get().addLog('Подписка удалена', 'warn');
   },
 
@@ -589,6 +721,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       settings: DEFAULT_SETTINGS,
       logs: initialLogs(),
     });
+    persistSession(null, null);
   },
 
   showToast: (message) => {

@@ -2,8 +2,10 @@ package net.ragenet.vpn
 
 import android.content.Intent
 import android.net.VpnService
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.ResultReceiver
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import expo.modules.kotlin.modules.Module
@@ -15,6 +17,8 @@ import java.net.Socket
 import java.net.URL
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class RageNetVpnModule : Module() {
   private var removeStatusListener: (() -> Unit)? = null
@@ -130,6 +134,39 @@ class RageNetVpnModule : Module() {
         null
       } finally {
         connection?.disconnect()
+      }
+    }
+
+    /**
+     * pingBatch must run outside the process that owns the active Xray core.
+     * The :ping service creates a temporary isolated core for up to five
+     * locations and returns libXray's exact proxy round-trip results.
+     */
+    AsyncFunction("pingBatch") { payload: String, timeoutMs: Int ->
+      val context = appContext.reactContext ?: return@AsyncFunction null
+      val latch = CountDownLatch(1)
+      var response: String? = null
+      val receiver = object : ResultReceiver(Handler(Looper.getMainLooper())) {
+        override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
+          response = resultData?.getString(RageNetPingService.EXTRA_RESULT)
+          latch.countDown()
+        }
+      }
+
+      try {
+        context.startService(
+          Intent(context, RageNetPingService::class.java).apply {
+            putExtra(RageNetPingService.EXTRA_PAYLOAD, payload)
+            putExtra(RageNetPingService.EXTRA_RECEIVER, receiver)
+          },
+        )
+        if (latch.await(timeoutMs.coerceIn(1_000, 60_000).toLong(), TimeUnit.MILLISECONDS)) {
+          response
+        } else {
+          null
+        }
+      } catch (_: Exception) {
+        null
       }
     }
 

@@ -81,7 +81,7 @@ export function DesktopShell({ children, onAddKey }: DesktopShellProps) {
           </Pressable>
         </View>
 
-        <Text style={styles.version}>RageNet VPN · 0.3.8</Text>
+        <Text style={styles.version}>RageNet VPN · 0.3.9</Text>
       </View>
 
       <View style={styles.content}>{children}</View>

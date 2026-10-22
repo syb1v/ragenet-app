@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.9] - 2026-10-22
+
+### Added
+
+- Per-location latency measurement through libXray `pingBatch`, in isolated
+  batches of up to five proxy outbounds. Each location is probed through its
+  own proxy exit instead of inheriting the selected tunnel's latency.
+- Subscription and selected-location persistence through SecureStore with
+  chunking for large full-config payloads and a browser localStorage fallback.
+
+### Fixed
+
+- Closing and reopening the app no longer asks for the subscription again.
+- Android pingBatch runs in an isolated `:ping` process bound to the
+  underlying non-VPN network; iOS probes bind to the physical interface so
+  they do not re-enter the active utun.
+
 ## [0.3.8] - 2026-10-22
 
 ### Added

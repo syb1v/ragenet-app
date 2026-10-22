@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { ServerNode } from '../types';
-import { buildXrayConfig, LATENCY_PROBE_DOMAIN, sanitizeFullConfig } from './config';
+import {
+  buildPingBatchConfig,
+  buildXrayConfig,
+  LATENCY_PROBE_DOMAIN,
+  sanitizeFullConfig,
+} from './config';
 
 const server: ServerNode = {
   id: 's1',
@@ -100,6 +105,29 @@ describe('buildXrayConfig', () => {
     };
 
     expect(outbound.streamSettings?.xhttpSettings?.extra).toEqual(extra);
+  });
+
+  it('builds an isolated pingBatch config and target tag', () => {
+    const ping = buildPingBatchConfig(server);
+    expect(ping?.outboundTag).toBe(server.id);
+    expect(JSON.parse(ping!.xrayJson).outbounds[0]).toMatchObject({
+      tag: server.id,
+      protocol: 'vless',
+    });
+  });
+
+  it('uses the proxy tag from a full pingBatch config', () => {
+    const ping = buildPingBatchConfig({
+      ...server,
+      fullConfig: JSON.stringify({
+        inbounds: [],
+        outbounds: [
+          { tag: 'custom-proxy', protocol: 'vless', settings: {} },
+          { tag: 'direct', protocol: 'freedom', settings: {} },
+        ],
+      }),
+    });
+    expect(ping).toMatchObject({ outboundTag: 'custom-proxy' });
   });
 
   it('inserts the TUN fallback before a catch-all direct rule', () => {

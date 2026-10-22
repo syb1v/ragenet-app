@@ -1,6 +1,6 @@
 {
   "name": "@ragenet/mobile",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "private": true,
   "license": "AGPL-3.0",
   "main": "index.ts",
@@ -27,6 +27,7 @@
     "expo-haptics": "~58.0.7",
     "expo-linear-gradient": "~58.0.3",
     "expo-modules-core": "~58.0.23",
+    "expo-secure-store": "~58.0.2",
     "expo-sharing": "58.0.9",
     "expo-status-bar": "~58.0.3",
     "expo-symbols": "58.0.4",

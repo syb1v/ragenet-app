@@ -21,6 +21,17 @@ export interface VpnLogEntry {
 
 export type VpnLogEventListener = (entry: VpnLogEntry) => void;
 
+export interface PingBatchConfig {
+  xrayJson: string;
+  outboundTag: string;
+}
+
+export interface PingBatchResult {
+  success: boolean;
+  delay: number;
+  error?: string;
+}
+
 /**
  * The only surface UI code should use for the tunnel.
  *
@@ -35,9 +46,20 @@ export interface VpnBridge {
   subscribe(listener: VpnEventListener): () => void;
   /** Stable per-device identifier used as the Remnawave `x-hwid` header. */
   getStableDeviceId?(): string;
+  /** IOS physical interface used to keep isolated probes off the utun. */
+  getPingInterface?(): string | null;
   /** Real end-to-end HTTPS latency through the current network/tunnel. */
   measureHttpLatency?(url: string, timeoutMs?: number): Promise<number | null>;
   measureLatency?(host: string, port: number, timeoutMs?: number): Promise<number | null>;
+  /**
+   * Probe up to five isolated Xray outbounds in one temporary core. This is
+   * real proxy exit latency and does not touch the active tunnel.
+   */
+  pingBatch?(
+    configs: PingBatchConfig[],
+    url: string,
+    timeoutSeconds: number,
+  ): Promise<PingBatchResult[] | null>;
   getLogs?(): Promise<VpnLogEntry[]>;
   clearLogs?(): Promise<void>;
   subscribeLogs?(listener: VpnLogEventListener): () => void;

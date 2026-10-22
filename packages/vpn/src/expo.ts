@@ -2,6 +2,8 @@ import type { VpnState, VpnStatus } from '@ragenet/core';
 import { requireNativeModule } from 'expo-modules-core';
 import { MockVpnBridge } from './mock';
 import type {
+  PingBatchConfig,
+  PingBatchResult,
   StartVpnOptions,
   VpnBridge,
   VpnEventListener,
@@ -23,8 +25,10 @@ interface NativeVpnModule {
     listener: (event: { time: number; level: string; message: string }) => void,
   ): { remove(): void };
   getStableDeviceId(): string;
+  getPingInterface?(): string | null;
   measureHttpLatency(url: string, timeoutMs: number): Promise<number | null>;
   measureLatency(host: string, port: number, timeoutMs: number): Promise<number | null>;
+  pingBatch(payload: string, timeoutMs: number): Promise<string | null>;
   getLogs(): Promise<{ time: number; level: string; message: string }[]>;
   clearLogs(): Promise<boolean>;
 }
@@ -80,8 +84,32 @@ export function createVpnBridge(): VpnBridge {
       return () => subscription.remove();
     },
     getStableDeviceId: () => native.getStableDeviceId(),
+    getPingInterface: () => native.getPingInterface?.() ?? null,
     measureHttpLatency: (url, timeoutMs = 4000) => native.measureHttpLatency(url, timeoutMs),
     measureLatency: (host, port, timeoutMs = 4000) => native.measureLatency(host, port, timeoutMs),
+    pingBatch: async (
+      configs: PingBatchConfig[],
+      url: string,
+      timeoutSeconds: number,
+    ): Promise<PingBatchResult[] | null> => {
+      const payload = JSON.stringify({
+        apiVersion: 3,
+        method: 'pingBatch',
+        payload: { configs, timeout: timeoutSeconds, url },
+      });
+      const raw = await native.pingBatch(payload, (timeoutSeconds + 8) * 1000);
+      if (!raw) return null;
+      try {
+        const response = JSON.parse(raw) as {
+          success?: boolean;
+          data?: { results?: PingBatchResult[] };
+        };
+        if (!response.success) return null;
+        return Array.isArray(response.data?.results) ? response.data.results : [];
+      } catch {
+        return null;
+      }
+    },
     getLogs: () =>
       native.getLogs().then((entries) =>
         entries.map((entry) => ({

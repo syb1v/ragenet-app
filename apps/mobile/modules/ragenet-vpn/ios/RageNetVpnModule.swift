@@ -1,4 +1,5 @@
 import ExpoModulesCore
+import LibXray
 import Network
 import NetworkExtension
 import Security
@@ -7,6 +8,9 @@ import UIKit
 public final class RageNetVpnModule: Module {
   private var manager: NETunnelProviderManager?
   private var statusObserver: NSObjectProtocol?
+  private let pathMonitor = NWPathMonitor()
+  private let pathLock = NSLock()
+  private var underlyingInterface: String?
 
   private var providerBundleIdentifier: String {
     (Bundle.main.bundleIdentifier ?? "net.ragenet.vpn") + ".tunnel"
@@ -51,6 +55,14 @@ public final class RageNetVpnModule: Module {
         manager = try? await loadManager()
       }
       return statusPayload()
+    }
+
+    /// Physical interface used to bypass the active utun while pingBatch runs
+    /// in the main app process.
+    Function("getPingInterface") { () -> String? in
+      self.pathLock.lock()
+      defer { self.pathLock.unlock() }
+      return self.underlyingInterface
     }
 
     /// Keychain items survive app deletion/reinstall on iOS, unlike
@@ -180,6 +192,24 @@ public final class RageNetVpnModule: Module {
       }
     }
 
+    /// The main app has no managed Xray instance, so libXray can create an
+    /// isolated temporary core here and probe up to five outbounds at once.
+    AsyncFunction("pingBatch") { (payload: String, _: Int) async -> String? in
+      await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
+        DispatchQueue.global(qos: .userInitiated).async {
+          let response = payload.withCString { pointer in
+            CGoInvoke(UnsafeMutablePointer(mutating: pointer))
+          }
+          guard let response else {
+            continuation.resume(returning: nil)
+            return
+          }
+          defer { CGoFree(response) }
+          continuation.resume(returning: String(cString: response))
+        }
+      }
+    }
+
     Function("getLogs") { () -> [[String: Any]] in
       guard
         let directory = FileManager.default.containerURL(
@@ -239,6 +269,18 @@ public final class RageNetVpnModule: Module {
       ) { [weak self] _ in
         self?.emitStatus()
       }
+      pathMonitor.pathUpdateHandler = { [weak self] path in
+        let candidates = path.availableInterfaces
+        let interface =
+          candidates.first(where: { $0.type == .wifi }) ??
+          candidates.first(where: { $0.type == .cellular }) ??
+          candidates.first(where: { $0.type == .wiredEthernet })
+        self?.pathLock.lock()
+        self?.underlyingInterface = interface?.name
+        self?.pathLock.unlock()
+      }
+      pathMonitor.start(queue: DispatchQueue(label: "net.ragenet.path-monitor"))
+
       Task { [weak self] in
         guard let self else { return }
         self.manager = try? await self.loadManager()
@@ -247,6 +289,7 @@ public final class RageNetVpnModule: Module {
     }
 
     OnDestroy {
+      pathMonitor.cancel()
       if let statusObserver {
         NotificationCenter.default.removeObserver(statusObserver)
       }
