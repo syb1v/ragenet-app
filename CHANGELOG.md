@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.22] - 2026-10-22
+
+### Changed
+
+- Calmed the connection surface: aperture rings and dust no longer rotate
+  continuously. They stay still at rest, respond to drag, and vibrate only
+  while the user holds the core.
+- Drag now visibly rotates the dust halo instead of only producing haptic
+  ticks.
+
 ## [0.1.21] - 2026-10-21
 
 ### Changed

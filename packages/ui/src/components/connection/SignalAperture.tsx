@@ -2,7 +2,7 @@ import { colors } from '@ragenet/design';
 import type { VpnState } from '@ragenet/core';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Power } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   Animated,
@@ -79,6 +79,9 @@ export function SignalAperture({ state, onToggle, size: explicitSize }: SignalAp
 
   const spinA = useRef(new Animated.Value(0)).current;
   const spinB = useRef(new Animated.Value(0)).current;
+  const dustDrag = useRef(new Animated.Value(0)).current;
+  const vibration = useRef(new Animated.Value(0)).current;
+  const dragAngle = useRef(0);
   const pressing = useRef(false);
   const triggeredByHold = useRef(false);
   const startedAt = useRef(0);
@@ -86,6 +89,58 @@ export function SignalAperture({ state, onToggle, size: explicitSize }: SignalAp
   const chargeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
   const [charge, setCharge] = useState(0);
+  const [isCharging, setIsCharging] = useState(false);
+
+  const dust = useMemo(
+    () =>
+      Array.from({ length: 28 }, (_, index) => {
+        const outer = index % 2 === 0;
+        const angle = ((index * 137.508 + (outer ? 0 : 23)) * Math.PI) / 180;
+        const radius = outer ? 134 : 113;
+        return {
+          x: 138 + Math.cos(angle) * radius,
+          y: 138 + Math.sin(angle) * radius,
+          radius: outer ? 1.1 : 0.8,
+          opacity: outer ? 0.58 : 0.38,
+        };
+      }),
+    [],
+  );
+
+  useEffect(() => {
+    if (!isCharging || reduceMotion) {
+      vibration.stopAnimation();
+      vibration.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(vibration, {
+          toValue: 1,
+          duration: 90,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+        Animated.timing(vibration, {
+          toValue: -1,
+          duration: 90,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+        Animated.timing(vibration, {
+          toValue: 0,
+          duration: 90,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+      ]),
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+      vibration.setValue(0);
+    };
+  }, [isCharging, reduceMotion, vibration]);
 
   const clearTimers = () => {
     if (holdTimer.current) {
@@ -97,54 +152,6 @@ export function SignalAperture({ state, onToggle, size: explicitSize }: SignalAp
       chargeTimer.current = null;
     }
   };
-
-  useEffect(() => {
-    if (reduceMotion) {
-      spinA.setValue(0);
-      spinB.setValue(0);
-      return;
-    }
-
-    const durationA =
-      state === 'connected'
-        ? 18000
-        : state === 'connecting' || state === 'disconnecting'
-          ? 7000
-          : 28000;
-    const durationB =
-      state === 'connected'
-        ? 26000
-        : state === 'connecting' || state === 'disconnecting'
-          ? 9000
-          : 34000;
-
-    spinA.setValue(0);
-    spinB.setValue(0);
-    const animationA = Animated.loop(
-      Animated.timing(spinA, {
-        toValue: 1,
-        duration: durationA,
-        easing: Easing.linear,
-        useNativeDriver: Platform.OS !== 'web',
-      }),
-    );
-    const animationB = Animated.loop(
-      Animated.timing(spinB, {
-        toValue: 1,
-        duration: durationB,
-        easing: Easing.linear,
-        useNativeDriver: Platform.OS !== 'web',
-      }),
-    );
-    animationA.start();
-    animationB.start();
-    return () => {
-      animationA.stop();
-      animationB.stop();
-      spinA.setValue(0);
-      spinB.setValue(0);
-    };
-  }, [reduceMotion, spinA, spinB, state]);
 
   useEffect(
     () => () => {
@@ -162,6 +169,22 @@ export function SignalAperture({ state, onToggle, size: explicitSize }: SignalAp
     inputRange: [0, 1],
     outputRange: ['0deg', '-360deg'],
   });
+  const rotateDust = spinB.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+  const dragRotate = dustDrag.interpolate({
+    inputRange: [-55, 55],
+    outputRange: ['-55deg', '55deg'],
+  });
+  const vibrateX = vibration.interpolate({
+    inputRange: [-1, 1],
+    outputRange: [-1.5, 1.5],
+  });
+  const vibrateY = vibration.interpolate({
+    inputRange: [-1, 1],
+    outputRange: [1.2, -1.2],
+  });
 
   const isInside = (x: number, y: number) => {
     const dx = x - size / 2;
@@ -173,6 +196,14 @@ export function SignalAperture({ state, onToggle, size: explicitSize }: SignalAp
     clearTimers();
     stopHapticRamp();
     setCharge(0);
+    setIsCharging(false);
+    dragAngle.current = 0;
+    Animated.spring(dustDrag, {
+      toValue: 0,
+      speed: 18,
+      bounciness: 4,
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
   };
 
   const beginPress = (event: GestureResponderEvent) => {
@@ -186,6 +217,7 @@ export function SignalAperture({ state, onToggle, size: explicitSize }: SignalAp
     startedAt.current = Date.now();
     lastPoint.current = null;
     setCharge(0);
+    setIsCharging(true);
     tickHaptic();
     startHapticRamp(HOLD_MS, 260);
 
@@ -200,6 +232,7 @@ export function SignalAperture({ state, onToggle, size: explicitSize }: SignalAp
       triggeredByHold.current = true;
       clearTimers();
       setCharge(0);
+      setIsCharging(false);
       chargeHaptic('light');
       onToggle();
     }, HOLD_MS);
@@ -219,7 +252,10 @@ export function SignalAperture({ state, onToggle, size: explicitSize }: SignalAp
     const x = locationX / size;
     const y = locationY / size;
     if (lastPoint.current) {
+      const dx = (x - lastPoint.current.x) * size;
       const distance = Math.hypot(x - lastPoint.current.x, y - lastPoint.current.y) * size;
+      dragAngle.current = Math.max(-55, Math.min(55, dragAngle.current + dx * 0.16));
+      dustDrag.setValue(dragAngle.current);
       if (distance > 3) dragHaptic(Math.min(1, distance / 32));
     }
     lastPoint.current = { x, y };
@@ -376,6 +412,40 @@ export function SignalAperture({ state, onToggle, size: explicitSize }: SignalAp
         </Svg>
       </Animated.View>
 
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.layer, { transform: [{ rotate: rotateDust }] }]}
+      >
+        <Animated.View style={[styles.layer, { transform: [{ rotate: dragRotate }] }]}>
+          <Animated.View
+            style={[
+              styles.layer,
+              {
+                opacity: state === 'connected' ? 0.9 : state === 'error' ? 0.38 : 0.7,
+                transform: [
+                  { scale: 1 - charge * 0.055 },
+                  { translateX: vibrateX },
+                  { translateY: vibrateY },
+                ],
+              },
+            ]}
+          >
+            <Svg width={size} height={size} viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`}>
+              {dust.map((dot, index) => (
+                <Circle
+                  key={index}
+                  cx={dot.x}
+                  cy={dot.y}
+                  r={dot.radius}
+                  fill={accent}
+                  opacity={dot.opacity}
+                />
+              ))}
+            </Svg>
+          </Animated.View>
+        </Animated.View>
+      </Animated.View>
+
       <Svg
         pointerEvents="none"
         width={size}
@@ -400,7 +470,7 @@ export function SignalAperture({ state, onToggle, size: explicitSize }: SignalAp
           strokeOpacity={charge > 0 ? 0.95 : 0}
           strokeWidth={2}
           strokeLinecap="round"
-          strokeDasharray={PROGRESS_CIRCUMFERENCE}
+          strokeDasharray={`${PROGRESS_CIRCUMFERENCE} ${PROGRESS_CIRCUMFERENCE}`}
           strokeDashoffset={PROGRESS_CIRCUMFERENCE * (1 - charge)}
           rotation={-90}
           origin="138, 138"
