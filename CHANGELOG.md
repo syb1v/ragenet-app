@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.23] - 2026-10-22
+
+### Changed
+
+- Restored the RageNet particle sphere as the single home connection surface,
+  using the original simulation and a native SVG renderer without Skia.
+- The sphere responds to touch and drag, uses soft haptic ticks, and has no
+  perpetual ring spin.
+
 ## [0.1.22] - 2026-10-22
 
 ### Changed

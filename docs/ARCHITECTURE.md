@@ -19,7 +19,7 @@ apps/mobile  ─┐
 apps/desktop ─┼─ packages/ui ── packages/design
               ├─ packages/core ── subscription / Xray config / HWID
 
-packages/ui
+packages/ui ── packages/particles (sphere simulation)
   └─ packages/vpn contract (native bridge)
 
 native/android  VpnService + libXray.aar

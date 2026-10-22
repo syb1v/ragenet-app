@@ -25,7 +25,7 @@ import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { IconButton } from '../components/IconButton';
 import { Screen } from '../components/Screen';
-import { SignalAperture } from '../components/connection/SignalAperture';
+import { ParticleSphere } from '../components/particles/ParticleSphere';
 import { errorHaptic, successHaptic } from '../lib/haptics';
 import { formatBytes, formatDate, formatUpdated, stripFlag } from '../lib/format';
 import { DEMO_SUPPORT_URL } from '../lib/demo';
@@ -113,7 +113,7 @@ export function HomeScreen() {
         bounces={false}
       >
         <View style={styles.coreArea}>
-          <SignalAperture state={vpnStatus.state} onToggle={toggleConnection} />
+          <ParticleSphere state={vpnStatus.state} onToggle={toggleConnection} />
           <View
             style={[
               styles.statusPill,

@@ -2,19 +2,19 @@
 
 Кроссплатформенный клиент RageNet на React Native (мобильные) и Tauri + React Native Web (десктоп). Ядро — Xray-core через `libXray`, с встроенным TUN-инбаундом.
 
-> **Статус: Phase 0, версия 0.1.22.** Это рабочий UI-прототип и фундамент проекта, а не готовый VPN-клиент. Реальный туннель, подпись iOS и привилегированный desktop-helper ещё не подключены. План и даты — в [docs/ROADMAP.md](docs/ROADMAP.md), версии — в [docs/VERSIONING.md](docs/VERSIONING.md).
+> **Статус: Phase 0, версия 0.1.23.** Это рабочий UI-прототип и фундамент проекта, а не готовый VPN-клиент. Реальный туннель, подпись iOS и привилегированный desktop-helper ещё не подключены. План и даты — в [docs/ROADMAP.md](docs/ROADMAP.md), версии — в [docs/VERSIONING.md](docs/VERSIONING.md).
 
 ## Что уже работает
 
 - онбординг с добавлением ключа: буфер, QR-заглушка, ручной ввод;
-- главный экран с Signal Aperture: кольца-апертуры, заряд удержанием, мягкие haptic-тики и плавный переход между состояниями;
+- главный экран с нашей сферой: 1600 частиц, мягкая реакция на палец, удержание, drag и мягкие haptic-тики;
 - карточка подписки, трафик, срок действия, выбор сервера, поддержка;
 - компактное меню подписки рядом с кнопкой «…»: QR, поделиться, копировать, удалить;
 - настройки, логи, сброс, «О приложении»;
 - парсер Remnawave-подписок: base64/plain/JSON/full Xray config, заголовки `subscription-userinfo`, `profile-title`, `support-url`, `announce`;
 - сборщик Xray-конфига с TUN inbound, DNS, stats и routing-пресетами;
 - безопасный санитайзер полных Xray-конфигов;
-- SVG/reanimated-анимация Signal Aperture без тяжёлого Skia-рендерера;
+- нативная сфера на SVG-рендерере без тяжёлого Skia-сборки;
 - Tauri 2 shell для Windows/macOS/Linux;
 - генератор иконок из брендового логотипа;
 - unit-тесты парсера, конфига и Xray-сборщика.
@@ -54,6 +54,7 @@ packages/
   design/        токены, шрифты, темы
   core/          подписки, Remnawave-заголовки, Xray-конфиг, HWID
   vpn/           контракт native bridge + mock
+  particles/     симуляция сферы
   ui/            экраны, компоненты, store
 native/
   android/       контракт VpnService + libXray

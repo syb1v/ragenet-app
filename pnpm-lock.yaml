@@ -271,6 +271,8 @@ importers:
 
   packages/design: {}
 
+  packages/particles: {}
+
   packages/ui:
     dependencies:
       '@expo-google-fonts/ibm-plex-mono':
@@ -285,6 +287,9 @@ importers:
       '@ragenet/design':
         specifier: workspace:*
         version: link:../design
+      '@ragenet/particles':
+        specifier: workspace:*
+        version: link:../particles
       '@ragenet/vpn':
         specifier: workspace:*
         version: link:../vpn

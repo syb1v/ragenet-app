@@ -27,7 +27,8 @@
     "react-native-safe-area-context": "5.10.1",
     "react-native-svg": "15.16.0",
     "zustand": "^5.0.15",
-    "@ragenet/vpn": "workspace:*"
+    "@ragenet/vpn": "workspace:*",
+    "@ragenet/particles": "workspace:*"
   },
   "peerDependencies": {
     "react": "*",

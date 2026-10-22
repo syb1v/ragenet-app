@@ -1,7 +1,7 @@
 # RageNet app — roadmap
 
 **Статус:** Phase 0 завершён, Phase 1–2 в работе
-**Версия:** 0.1.22
+**Версия:** 0.1.23
 **Дата обновления:** 21 октября 2026
 **Репозиторий:** `ragenet-app` (клиент; backend/cabinet — в основном репозитории RageNet VPN)
 
@@ -18,7 +18,7 @@
 Готово:
 
 - UI-прототип: онбординг, главный экран, настройки, логи;
-- Signal Aperture: tap/hold, заряд кольца, мягкие haptics и реакция на состояние;
+- наша сфера: 1600 частиц, tap/hold, drag, мягкие haptics и реакция на состояние;
 - компактное меню подписки: QR, share, copy, delete;
 - парсер подписок Remnawave, HWID, сборщик Xray-конфига, санитайзер full configs;
 - Tauri 2 каркас, иконки, дизайн-токены, CI-скелет, тесты;
@@ -39,11 +39,11 @@
 
 ### Phase 0 — Foundation
 
-**Статус:** done · **Версия:** 0.1.22
+**Статус:** done · **Версия:** 0.1.23
 
 - Монорепо, дизайн-система, экраны.
 - Парсер подписок и сборщик Xray-конфига.
-- Интерактивная Signal Aperture.
+- Интерактивная сфера.
 - Tauri shell и native-контракты.
 - CI: typecheck, tests, prettier, web build.
 - Документация: architecture, signing, phase 0, roadmap, versioning.

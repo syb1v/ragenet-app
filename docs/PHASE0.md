@@ -1,6 +1,6 @@
 # Phase 0 — foundation
 
-**Status:** done · **App version:** 0.1.22 · **Next:** Phase 1 (Android VPN MVP)
+**Status:** done · **App version:** 0.1.23 · **Next:** Phase 1 (Android VPN MVP)
 
 See [ROADMAP.md](ROADMAP.md) for dates and [VERSIONING.md](VERSIONING.md) for
 release rules.
@@ -11,7 +11,7 @@ release rules.
 - [x] AGPL-3.0 license and branding assets.
 - [x] Design tokens matching the cabinet (`rage-ds.css`).
 - [x] Onboarding, home, settings, logs, add-key sheet, server sheet, reset sheet.
-- [x] Signal Aperture connection surface with tap-or-hold connect (SVG + native animation).
+- [x] Interactive RageNet sphere with tap-or-hold connect and native SVG rendering.
 - [x] Soft selection-tick haptics, progressive hold feedback and state transitions.
 - [x] Progressive haptic ramp for press-and-hold.
 - [x] Gentle drag feedback and full press/release lifecycle.
