@@ -45,7 +45,7 @@ Documentation-only changes may omit the changelog entry.
 | Tag                 | Meaning                    |
 | ------------------- | -------------------------- |
 | `app-v0.1.1`        | client release             |
-| `native-v26.10.17`  | libXray/Xray native assets |
+| `native-v26.10.21`  | libXray/Xray native assets |
 | `app-v0.2.0-beta.1` | pre-release                |
 
 Tags are created only after all checks pass and artifacts are uploaded.

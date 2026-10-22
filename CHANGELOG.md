@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-10-22
+
+### Added
+
+- Hysteria 2 support through the Xray `hysteria` outbound and QUIC/HTTP3
+  transport. Supports `hysteria2://` / `hy2://` links, auth in userinfo or
+  `auth`, SNI, ALPN, certificate pinning, Salamander obfs, bandwidth limits
+  and port hopping.
+- Advanced XHTTP `extra` settings are now carried over from share links
+  instead of dropping all padding, session, uplink and xmux options.
+
+### Fixed
+
+- The TUN fallback route in a full Xray config is inserted before the final
+  catch-all rule instead of after it, where it was unreachable.
+- Updated libXray/Xray to v26.10.21 with the current certificate set and
+  Hysteria 2 transport support.
+
 ## [0.3.5] - 2026-10-22
 
 ### Changed

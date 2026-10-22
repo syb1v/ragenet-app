@@ -63,4 +63,72 @@ describe('buildXrayConfig', () => {
     const tun = config.inbounds.find((inbound) => inbound.protocol === 'tun');
     expect(tun?.sniffing).toMatchObject({ enabled: true });
   });
+
+  it('preserves advanced XHTTP settings in a full config', () => {
+    const extra = {
+      headers: { Accept: '*/*' },
+      xPaddingBytes: '48-320',
+      xPaddingPlacement: 'queryInHeader',
+      xmux: { maxConcurrency: '4-8' },
+    };
+    const config = sanitizeFullConfig(
+      {
+        inbounds: [{ tag: 'socks', protocol: 'socks', listen: '127.0.0.1', port: 1080 }],
+        outbounds: [
+          {
+            tag: 'proxy',
+            protocol: 'vless',
+            settings: {},
+            streamSettings: {
+              network: 'xhttp',
+              security: 'tls',
+              xhttpSettings: {
+                host: 'cdn.example.com',
+                path: '/poll/',
+                mode: 'packet-up',
+                extra,
+              },
+            },
+          },
+        ],
+        routing: { rules: [{ type: 'field', network: 'tcp,udp', outboundTag: 'proxy' }] },
+      },
+      { selectedServerId: server.id },
+    );
+    const outbound = config.outbounds[0] as {
+      streamSettings?: { xhttpSettings?: { extra?: unknown } };
+    };
+
+    expect(outbound.streamSettings?.xhttpSettings?.extra).toEqual(extra);
+  });
+
+  it('inserts the TUN fallback before a catch-all direct rule', () => {
+    const config = sanitizeFullConfig(
+      {
+        inbounds: [{ tag: 'socks', protocol: 'socks', listen: '0.0.0.0', port: 1080 }],
+        outbounds: [
+          { tag: 'custom-proxy', protocol: 'vless', settings: {} },
+          { tag: 'direct', protocol: 'freedom', settings: {} },
+        ],
+        routing: {
+          rules: [
+            { type: 'field', port: 53, outboundTag: 'direct' },
+            { type: 'field', network: 'tcp,udp', outboundTag: 'direct' },
+          ],
+        },
+      },
+      { selectedServerId: server.id },
+    );
+    const rules = (config.routing as { rules?: Array<Record<string, unknown>> }).rules ?? [];
+    const tunIndex = rules.findIndex(
+      (rule) => Array.isArray(rule.inboundTag) && rule.inboundTag.includes('tun'),
+    );
+    const catchAllIndex = rules.findIndex(
+      (rule) => rule.network === 'tcp,udp' && rule.outboundTag === 'direct',
+    );
+
+    expect(tunIndex).toBeGreaterThanOrEqual(0);
+    expect(catchAllIndex).toBeGreaterThan(tunIndex);
+    expect(rules[tunIndex]).toMatchObject({ outboundTag: 'custom-proxy' });
+  });
 });

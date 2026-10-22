@@ -1,7 +1,7 @@
 {
-  "libXray": "v26.10.17",
-  "xrayCore": "v26.10.17",
-  "go": "1.27.1",
+  "libXray": "v26.10.21",
+  "xrayCore": "v26.10.21",
+  "go": "1.27.3",
   "androidNdk": "r29",
   "androidMinSdk": 26,
   "androidTargetSdk": 36,

@@ -70,6 +70,10 @@ The generated config always contains:
 - routing rules for API, local traffic and the final proxy route;
 - stats/policy blocks.
 
+Hysteria 2 links are emitted as Xray's `hysteria` outbound over the
+QUIC/HTTP3 `hysteria` transport. XHTTP links preserve advanced `extra`
+settings (padding, session/uplink keys and xmux) instead of flattening them.
+
 Full configs returned by a provider are sanitized before use: every non-TUN
 inbound is forced to `127.0.0.1`, public `dokodemo-door`/SOCKS/HTTP inbounds are
 not allowed to listen on external interfaces, and the TUN/stats plumbing is

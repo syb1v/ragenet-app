@@ -94,6 +94,27 @@ describe('subscription parser', () => {
     expect(parsed.servers).toHaveLength(2);
   });
 
+  it('reads the endpoint from a full Hysteria 2 config', () => {
+    const parsed = parseSubscription(
+      JSON.stringify({
+        inbounds: [],
+        outbounds: [
+          {
+            tag: 'hy2',
+            protocol: 'hysteria',
+            settings: { version: 2, address: 'hy.example.com', port: 8443 },
+            streamSettings: { network: 'hysteria' },
+          },
+        ],
+      }),
+    );
+    expect(parsed.servers[0]).toMatchObject({
+      protocol: 'hysteria2',
+      host: 'hy.example.com',
+      port: 8443,
+    });
+  });
+
   it('cuts a complete Xray config into a single server', () => {
     const parsed = parseSubscription(
       JSON.stringify({

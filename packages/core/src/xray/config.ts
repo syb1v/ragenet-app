@@ -249,7 +249,17 @@ export function sanitizeFullConfig(input: JsonObject, options: BuildXrayConfigOp
     proxyTag &&
     !rules.some((rule) => Array.isArray(rule.inboundTag) && rule.inboundTag.includes('tun'))
   ) {
-    rules.push({ type: 'field', inboundTag: ['tun'], outboundTag: proxyTag });
+    const tunRule = { type: 'field', inboundTag: ['tun'], outboundTag: proxyTag };
+    // Insert before a final catch-all. Appending after it would make the TUN
+    // rule unreachable and could send device traffic direct in custom configs.
+    const catchAllIndex = rules.findIndex((rule) => {
+      const constraints = Object.keys(rule).filter(
+        (key) => key !== 'type' && key !== 'outboundTag',
+      );
+      return constraints.length === 0 || (constraints.length === 1 && constraints[0] === 'network');
+    });
+    if (catchAllIndex >= 0) rules.splice(catchAllIndex, 0, tunRule);
+    else rules.push(tunRule);
   }
   if (rules.length === 0) {
     const tag = proxyOutboundTag(config);

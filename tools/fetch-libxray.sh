@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TAG="${LIBXRAY_TAG:-v26.10.17}"
+TAG="${LIBXRAY_TAG:-v26.10.21}"
 ABI="${LIBXRAY_ABI:-arm64-v8a}"
 DEST="$ROOT/apps/mobile/modules/ragenet-vpn/android/libs"
 TMP="$(mktemp -d)"

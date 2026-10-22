@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TAG="${LIBXRAY_TAG:-v26.10.17}"
+TAG="${LIBXRAY_TAG:-v26.10.21}"
 DEST="$ROOT/apps/mobile/vendor/libxray/LibXray.xcframework"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT

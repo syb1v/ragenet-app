@@ -212,7 +212,9 @@ function splitUserHost(
 function protocolFromScheme(scheme: string): Protocol {
   if (scheme === 'ss') return 'shadowsocks';
   if (scheme === 'socks5') return 'socks';
-  if (scheme === 'hy2') return 'hysteria2';
+  if (scheme === 'hy2' || scheme === 'hysteria2' || scheme === 'hysteria') {
+    return 'hysteria2';
+  }
   if (scheme === 'wg') return 'wireguard';
   if (LINK_PROTOCOLS.includes(scheme as Protocol)) return scheme as Protocol;
   return 'unknown';
@@ -382,8 +384,8 @@ function nodeFromFullConfig(config: Record<string, unknown>, index: number): Ser
   const settings = (proxy?.settings ?? {}) as Record<string, unknown>;
   const vnext = (settings.vnext as Array<Record<string, unknown>> | undefined)?.[0];
   const servers = (settings.servers as Array<Record<string, unknown>> | undefined)?.[0];
-  const host = String(vnext?.address ?? servers?.address ?? 'full-config');
-  const port = Number(vnext?.port ?? servers?.port ?? 443);
+  const host = String(vnext?.address ?? servers?.address ?? settings.address ?? 'full-config');
+  const port = Number(vnext?.port ?? servers?.port ?? settings.port ?? 443);
   const name = String(proxy?.tag ?? `Full config ${index + 1}`);
   const countryCode = countryCodeFromName(name);
 

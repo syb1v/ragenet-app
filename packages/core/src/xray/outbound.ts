@@ -65,6 +65,101 @@ function hostPortFromAuthority(
   return { user, host: hostPort, port: fallbackPort };
 }
 
+function parseObject(value: string | undefined): JsonObject | null {
+  if (!value) return null;
+  const candidates = [value];
+  try {
+    candidates.push(decodeBase64(value));
+  } catch {
+    // Not base64; the value can still be JSON.
+  }
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as JsonObject;
+      }
+    } catch {
+      // Try the next representation.
+    }
+  }
+  return null;
+}
+
+const XHTTP_EXTRA_KEYS = [
+  'scMaxEachPostBytes',
+  'scMinPostsIntervalMs',
+  'scMaxBufferedPosts',
+  'scStreamUpServerSecs',
+  'seqKey',
+  'seqPlacement',
+  'sessionIDKey',
+  'sessionIDPlacement',
+  'sessionKey',
+  'sessionPlacement',
+  'sessionIDTable',
+  'sessionIDLength',
+  'uplinkDataKey',
+  'uplinkDataPlacement',
+  'uplinkHTTPMethod',
+  'uplinkChunkSize',
+  'xPaddingBytes',
+  'xPaddingHeader',
+  'xPaddingKey',
+  'xPaddingMethod',
+  'xPaddingObfsMode',
+  'xPaddingPlacement',
+  'serverMaxHeaderBytes',
+  'noGRPCHeader',
+  'noSSEHeader',
+  'xmux',
+  'headers',
+  'downloadSettings',
+] as const;
+
+const XHTTP_NUMERIC_KEYS = new Set([
+  'scMaxBufferedPosts',
+  'serverMaxHeaderBytes',
+  'scMaxEachPostBytes',
+  'scMinPostsIntervalMs',
+  'scStreamUpServerSecs',
+  'uplinkChunkSize',
+  'xPaddingBytes',
+  'sessionIDLength',
+]);
+
+const XHTTP_BOOLEAN_KEYS = new Set(['xPaddingObfsMode', 'noGRPCHeader', 'noSSEHeader']);
+
+function xhttpExtra(query: Record<string, string>): JsonObject | undefined {
+  const extra: JsonObject = {};
+  const fromPayload = parseObject(query.extra);
+  if (fromPayload) Object.assign(extra, fromPayload);
+
+  for (const key of XHTTP_EXTRA_KEYS) {
+    const value = query[key];
+    if (value == null || value === '') continue;
+    if (key === 'xmux' || key === 'headers' || key === 'downloadSettings') {
+      const parsed = parseObject(value);
+      if (parsed) extra[key] = parsed;
+      continue;
+    }
+    if (XHTTP_BOOLEAN_KEYS.has(key)) {
+      extra[key] = value === '1' || value.toLowerCase() === 'true';
+      continue;
+    }
+    if (XHTTP_NUMERIC_KEYS.has(key) && !value.includes('-')) {
+      const numeric = Number(value);
+      if (Number.isFinite(numeric)) {
+        extra[key] = numeric;
+        continue;
+      }
+    }
+    extra[key] = value;
+  }
+
+  return Object.keys(extra).length > 0 ? extra : undefined;
+}
+
 function streamSettings(link: string): JsonObject {
   const query = queryObject(link);
   const network = (query.type || query.net || 'tcp').toLowerCase();
@@ -116,10 +211,15 @@ function streamSettings(link: string): JsonObject {
   }
 
   if (network === 'xhttp' || network === 'splithttp') {
+    const extra = xhttpExtra(query);
+    const extraHost = typeof extra?.host === 'string' ? extra.host : '';
+    const extraPath = typeof extra?.path === 'string' ? extra.path : '';
+    const extraMode = typeof extra?.mode === 'string' ? extra.mode : '';
     result.xhttpSettings = {
-      host: query.host || '',
-      path: query.path || '/',
-      mode: query.mode || 'auto',
+      host: query.host || extraHost,
+      path: query.path || extraPath || '/',
+      mode: query.mode || extraMode || 'auto',
+      ...(extra ? { extra } : {}),
     };
   }
 
@@ -216,7 +316,102 @@ function parseShadowsocks(link: string): {
   return { method, password, host, port };
 }
 
+function decodedUser(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * Hysteria2 is a QUIC/HTTP3 protocol. Xray 26.3+ exposes it as the
+ * `hysteria` outbound protocol with the `hysteria` transport.
+ */
+function hysteria2Outbound(node: ServerNode): JsonObject {
+  const query = queryObject(node.rawLink);
+  const authority = authorityFromLink(node.rawLink);
+  const { user, host, port } = hostPortFromAuthority(authority, node.port || 443);
+  const address = host || node.host;
+  const endpointPort = port || node.port;
+  const auth = decodedUser(user || query.auth || '');
+  if (!address || !Number.isFinite(endpointPort)) {
+    throw new UnsupportedProtocolError('hysteria2 without endpoint');
+  }
+
+  const serverName = query.sni || query.peer || query.host || address;
+  const alpn = (query.alpn ? query.alpn.split(',') : ['h3'])
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const pinned = query.pinSHA256 || query.pcs || query['pin-sha256'];
+  const tls: JsonObject = {
+    serverName,
+    alpn,
+  };
+  if (pinned) tls.pinnedPeerCertSha256 = pinned;
+  if (query.vcn || query.verifyPeerCertByName) {
+    tls.verifyPeerCertByName = query.vcn || query.verifyPeerCertByName;
+  }
+  if (query.fp) tls.fingerprint = query.fp;
+  // Xray 26.10 removed `allowInsecure`. Links that rely on it must carry
+  // `pinSHA256`; a self-signed endpoint without a pin cannot be verified.
+
+  const hysteriaSettings: JsonObject = {
+    version: 2,
+    auth,
+  };
+  const udpIdleTimeout = Number(query.udpIdleTimeout);
+  if (Number.isFinite(udpIdleTimeout) && udpIdleTimeout >= 2 && udpIdleTimeout <= 600) {
+    hysteriaSettings.udpIdleTimeout = udpIdleTimeout;
+  }
+
+  const udpMasks: JsonObject[] = [];
+  if (query.obfs?.toLowerCase() === 'salamander' && query['obfs-password']) {
+    udpMasks.push({
+      type: 'salamander',
+      settings: { password: query['obfs-password'] },
+    });
+  }
+
+  const quicParams: JsonObject = {};
+  const bandwidth = (value: string | undefined): string | undefined => {
+    if (!value) return undefined;
+    return /^\d+(\.\d+)?$/.test(value.trim()) ? `${value.trim()} mbps` : value.trim();
+  };
+  const up = bandwidth(query.up);
+  const down = bandwidth(query.down);
+  if (up) quicParams.brutalUp = up;
+  if (down) quicParams.brutalDown = down;
+  if (query.congestion) quicParams.congestion = query.congestion;
+  if (query.mport) quicParams.udpHop = { ports: query.mport };
+
+  const finalmask: JsonObject = {};
+  if (udpMasks.length > 0) finalmask.udp = udpMasks;
+  if (Object.keys(quicParams).length > 0) finalmask.quicParams = quicParams;
+
+  return {
+    tag: node.id,
+    protocol: 'hysteria',
+    settings: {
+      version: 2,
+      address,
+      port: endpointPort,
+    },
+    streamSettings: {
+      network: 'hysteria',
+      security: 'tls',
+      tlsSettings: tls,
+      hysteriaSettings,
+      ...(Object.keys(finalmask).length > 0 ? { finalmask } : {}),
+    },
+  };
+}
+
 export function buildOutbound(node: ServerNode): JsonObject {
+  if (node.protocol === 'hysteria2') {
+    return hysteria2Outbound(node);
+  }
+
   if (node.protocol === 'vless') {
     const query = queryObject(node.rawLink);
     const authority = authorityFromLink(node.rawLink);
