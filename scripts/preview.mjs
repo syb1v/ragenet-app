@@ -48,7 +48,7 @@ await page.waitForTimeout(3000);
 await page.screenshot({ path: path.join(outputDir, 'charging.png') });
 await page.waitForTimeout(5100);
 await page.mouse.up();
-await page.waitForTimeout(1800);
+await page.waitForTimeout(4200);
 const dragHoldConnected = await page.getByText('Подключено', { exact: true }).isVisible();
 await page.screenshot({ path: path.join(outputDir, 'connected.png') });
 
@@ -58,7 +58,7 @@ await page.mouse.down();
 await page.mouse.move(box.x + box.width / 2 + 34, box.y + box.height / 2 + 18, { steps: 8 });
 await page.waitForTimeout(8400);
 await page.mouse.up();
-await page.waitForTimeout(1800);
+await page.waitForTimeout(4200);
 const dragHoldDisconnected = await page.getByText('Отключено', { exact: true }).isVisible();
 
 // A clear tap connects.
@@ -76,7 +76,7 @@ await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 await page.mouse.down();
 await page.waitForTimeout(8400);
 await page.mouse.up();
-await page.waitForTimeout(1800);
+await page.waitForTimeout(4200);
 const holdDisconnected = await page.getByText('Отключено', { exact: true }).isVisible();
 
 await page.getByLabel('Меню подписки').click();
@@ -127,7 +127,7 @@ await page.mouse.move(holdBox.x + holdBox.width / 2, holdBox.y + holdBox.height 
 await page.mouse.down();
 await page.waitForTimeout(8400);
 await page.mouse.up();
-await page.waitForTimeout(1800);
+await page.waitForTimeout(4200);
 const holdConnected = await page.getByText('Подключено', { exact: true }).isVisible();
 
 await browser.close();

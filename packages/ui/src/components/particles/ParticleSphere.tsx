@@ -2,8 +2,6 @@ import type { VpnState } from '@ragenet/core';
 import { ParticleSphereSimulation, type ParticleMode } from '@ragenet/particles';
 import { useEffect, useMemo, useRef } from 'react';
 import {
-  Animated,
-  Easing,
   Platform,
   StyleSheet,
   View,
@@ -30,6 +28,10 @@ interface ParticleSphereProps {
 
 const HOLD_MS = 8000;
 const TAP_MAX_MS = 320;
+const GATHER_MS = 1500;
+const COMPRESS_HOLD_MS = 420;
+const BURST_MS = 2000;
+const BURST_CONNECT_MS = 320;
 
 export function ParticleSphere({
   state,
@@ -49,9 +51,8 @@ export function ParticleSphere({
   const chargeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
   const pressOrigin = useRef({ x: 0.5, y: 0.5 });
-  const burstHapticTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const burstFrame = useRef<number | null>(null);
   const previousState = useRef(state);
-  const renderScale = useRef(new Animated.Value(1)).current;
   const burstStarted = useRef(false);
   const reportedCharge = useRef(0);
 
@@ -91,16 +92,13 @@ export function ParticleSphere({
       clearInterval(chargeTimer.current);
       chargeTimer.current = null;
     }
-    if (burstHapticTimer.current) {
-      clearTimeout(burstHapticTimer.current);
-      burstHapticTimer.current = null;
-    }
   };
 
   useEffect(
     () => () => {
       clearTimers();
       stopHapticRamp();
+      if (burstFrame.current != null) cancelAnimationFrame(burstFrame.current);
     },
     [],
   );
@@ -123,39 +121,51 @@ export function ParticleSphere({
     burstStarted.current = true;
     clearTimers();
     stopHapticRamp();
-    simulation.setPointer(null, null);
     simulation.setCharge(1);
     onChargeProgress?.(1);
-    chargeHaptic('light');
-    Animated.timing(renderScale, {
-      toValue: 0.56,
-      duration: 820,
-      easing: Easing.inOut(Easing.cubic),
-      useNativeDriver: true,
-    }).start(({ finished: compressed }) => {
-      if (!compressed) return;
-      onToggle();
-      burstHapticTimer.current = setTimeout(() => chargeHaptic('light'), 760);
-      Animated.timing(renderScale, {
-        toValue: 1.3,
-        duration: 760,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start(({ finished: expanded }) => {
-        if (!expanded) return;
-        Animated.spring(renderScale, {
-          toValue: 1,
-          speed: 8,
-          bounciness: 9,
-          useNativeDriver: true,
-        }).start(({ finished: settled }) => {
+    startHapticRamp(GATHER_MS + COMPRESS_HOLD_MS, 220);
+
+    const startedAt = performance.now();
+    let released = false;
+    let connected = false;
+
+    const step = (now: number) => {
+      const elapsed = now - startedAt;
+
+      if (elapsed < GATHER_MS) {
+        const progress = Math.min(1, elapsed / GATHER_MS);
+        const eased = progress * progress * (3 - 2 * progress);
+        simulation.setGather(eased);
+      } else if (elapsed < GATHER_MS + COMPRESS_HOLD_MS) {
+        simulation.setGather(1);
+      } else {
+        const burstElapsed = elapsed - GATHER_MS - COMPRESS_HOLD_MS;
+        if (!released) {
+          released = true;
+          stopHapticRamp();
+          simulation.setPointer(null, null);
+          simulation.setGather(0);
+          simulation.triggerBurst();
+          chargeHaptic('light');
+        }
+        if (!connected && burstElapsed >= BURST_CONNECT_MS) {
+          connected = true;
+          onToggle();
+        }
+        if (burstElapsed >= BURST_MS) {
           simulation.setCharge(0);
-          renderScale.setValue(1);
+          simulation.setGather(0);
           burstStarted.current = false;
-          if (settled) onChargeProgress?.(null);
-        });
-      });
-    });
+          burstFrame.current = null;
+          onChargeProgress?.(null);
+          return;
+        }
+      }
+
+      burstFrame.current = requestAnimationFrame(step);
+    };
+
+    burstFrame.current = requestAnimationFrame(step);
   };
 
   const beginPress = (event: GestureResponderEvent) => {
@@ -169,6 +179,7 @@ export function ParticleSphere({
     pressStartedAt.current = Date.now();
     lastPoint.current = null;
     burstStarted.current = false;
+    simulation.setGather(0);
     simulation.setCharge(0);
     reportedCharge.current = 0;
     onChargeProgress?.(0);
@@ -231,6 +242,7 @@ export function ParticleSphere({
     pressing.current = false;
     if (wasTriggered) {
       clearTimers();
+      simulation.setPointer(null, null);
       return;
     }
     resetCharge();
@@ -278,9 +290,7 @@ export function ParticleSphere({
       style={[styles.root, { width: size, height: size }, webGestureStyle]}
       testID="particle-sphere"
     >
-      <Animated.View style={[styles.render, { transform: [{ scale: renderScale }] }]}>
-        <ParticleRenderer simulation={simulation} size={size} mode={mode} />
-      </Animated.View>
+      <ParticleRenderer simulation={simulation} size={size} mode={mode} />
     </View>
   );
 }
@@ -290,9 +300,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-  },
-  render: {
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

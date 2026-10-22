@@ -1,6 +1,6 @@
 # Phase 0 — foundation
 
-**Status:** done · **App version:** 0.1.26 · **Next:** Phase 1 (Android VPN MVP)
+**Status:** done · **App version:** 0.1.27 · **Next:** Phase 1 (Android VPN MVP)
 
 See [ROADMAP.md](ROADMAP.md) for dates and [VERSIONING.md](VERSIONING.md) for
 release rules.

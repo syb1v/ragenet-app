@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.27] - 2026-10-22
+
+### Changed
+
+- Softened the tap wave: one slow front, wider and dimmer, with a longer
+  fade-in instead of a bright flash.
+- Kept the finger's repulsion active through the gather phase and only removed
+  it when the energy is released.
+- Moved compression and release into the particle simulation: particles gather
+  toward the centre, then receive a damped radial impulse.
+- Extended the hold transition to a 1.5 second gather, a compressed pause and a
+  2 second physical release.
+- Added soft haptic feedback during the gather phase.
+
 ## [0.1.26] - 2026-10-22
 
 ### Fixed

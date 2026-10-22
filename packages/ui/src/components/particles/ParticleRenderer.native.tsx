@@ -43,7 +43,7 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
       last = now;
       simulation.update(dt);
 
-      if (now - lastPaint >= 33) {
+      if (now - lastPaint >= 16) {
         lastPaint = now;
         const projected = simulation.project(size);
         const buckets: [string[], string[], string[]] = [[], [], []];
@@ -77,7 +77,7 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
                 x: size / 2 + (wave.x * 2 - 1) * size * 0.37,
                 y: size / 2 + (wave.y * 2 - 1) * size * 0.37,
                 r: wave.progress * size * 1.22,
-                opacity: (1 - wave.progress) ** 1.5 * 0.22 * wave.strength,
+                opacity: (1 - wave.progress) ** 1.5 * 0.07 * wave.strength,
               }
             : null,
         );
@@ -90,7 +90,8 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
     return () => cancelAnimationFrame(animation);
   }, [simulation, size]);
 
-  const glow = mode === 'connected' ? 0.24 : 0.03 + simulation.charge * 0.18;
+  const glow =
+    (mode === 'connected' ? 0.24 : 0.03 + simulation.charge * 0.18) + simulation.burstGlow * 0.16;
 
   return (
     <Svg width={size} height={size}>
@@ -136,7 +137,7 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
             r={waveRing.r}
             fill="none"
             stroke="#d8d1ff"
-            strokeWidth={1.4}
+            strokeWidth={1}
             opacity={waveRing.opacity}
           />
         </G>

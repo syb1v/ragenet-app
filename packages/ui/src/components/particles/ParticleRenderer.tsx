@@ -55,6 +55,7 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
       const targetGlow =
         (mode === 'connected' ? 0.25 : mode === 'connecting' ? 0.16 : 0.06) +
         charge * 0.16 +
+        simulation.burstGlow * 0.2 +
         reaction * 0.08;
       glowRef.current += (targetGlow - glowRef.current) * blend;
 

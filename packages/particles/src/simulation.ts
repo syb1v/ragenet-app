@@ -61,10 +61,15 @@ export class ParticleSphereSimulation {
   private waveX = 0.5;
   private waveY = 0.5;
   private waveStrength = 0;
+  private gatherLevel = 0;
 
   mode: ParticleMode = 'idle';
   charge = 0;
   impulse = 0;
+  /** 0 = resting sphere, 1 = fully gathered for the burst. */
+  gather = 0;
+  /** Short-lived flash used by renderers after the release. */
+  burstGlow = 0;
   /** Smooth 0→1→0 response used for glow, size and a soft ripple. */
   reaction = 0;
 
@@ -162,6 +167,32 @@ export class ParticleSphereSimulation {
     this.charge = clamp(value, 0, 1);
   }
 
+  /** Smoothly gather the whole cloud toward the centre before the release. */
+  setGather(value: number): void {
+    this.gatherLevel = clamp(value, 0, 1);
+    this.gather = this.gatherLevel;
+  }
+
+  /**
+   * Release the gathered cloud with a short radial impulse. The normal spring
+   * then produces a damped overshoot instead of a linear scale animation.
+   */
+  triggerBurst(strength = 1): void {
+    this.burstGlow = clamp(strength, 0, 1.5);
+    const power = 1.35 * clamp(strength, 0, 1.5);
+    for (let index = 0; index < this.count; index += 1) {
+      const offset = index * 3;
+      const x = this.position[offset];
+      const y = this.position[offset + 1];
+      const z = this.position[offset + 2];
+      const length = Math.max(0.001, Math.hypot(x, y, z));
+      const variation = 0.72 + (this.phase[index] / TAU) * 0.56;
+      this.velocity[offset] += (x / length) * power * variation;
+      this.velocity[offset + 1] += (y / length) * power * variation;
+      this.velocity[offset + 2] += (z / length) * power * variation;
+    }
+  }
+
   /** Start a liquid ripple from a normalized point on the sphere. */
   triggerWave(x: number, y: number, strength = 1): void {
     this.waveX = clamp(x, 0, 1);
@@ -179,7 +210,7 @@ export class ParticleSphereSimulation {
     this.time += step;
     if (this.waveStrength > 0) {
       this.waveAge += step;
-      if (this.waveAge >= 1.1) {
+      if (this.waveAge >= 2.2) {
         this.waveStrength = 0;
       }
     }
@@ -217,12 +248,14 @@ export class ParticleSphereSimulation {
     const cosY = Math.cos(this.rotationY);
     const sinY = Math.sin(this.rotationY);
 
+    const gatherScale = 1 - this.gatherLevel * 0.44;
     const targetRadius =
-      1 - this.chargeLevel * 0.03 + Math.sin(this.time * 1.1) * 0.003 - this.reaction * 0.02;
+      (1 - this.chargeLevel * 0.03 + Math.sin(this.time * 1.1) * 0.003 - this.reaction * 0.02) *
+      gatherScale;
     this.radiusLevel += (targetRadius - this.radiusLevel) * Math.min(1, step * 3);
 
-    const stiffness = 18 + this.chargeLevel * 20;
-    const damping = 7 + this.chargeLevel * 3;
+    const stiffness = 18 + this.chargeLevel * 20 + this.gatherLevel * 10;
+    const damping = 7 + this.chargeLevel * 3 + this.gatherLevel * 2;
     const targetJitter =
       0.0025 +
       this.chargeLevel * 0.018 +
@@ -290,6 +323,12 @@ export class ParticleSphereSimulation {
       this.position[offset + 2] = nextZ * scale;
     }
 
+    if (this.burstGlow > 0.001) {
+      this.burstGlow *= Math.exp(-2.8 * step);
+    } else {
+      this.burstGlow = 0;
+    }
+
     this.impulse *= Math.exp(-3.4 * step);
     if (this.impulse < 0.001) this.impulse = 0;
   }
@@ -300,7 +339,7 @@ export class ParticleSphereSimulation {
     return {
       x: this.waveX,
       y: this.waveY,
-      progress: clamp(this.waveAge / 1.1, 0, 1),
+      progress: clamp(this.waveAge / 2.2, 0, 1),
       strength: this.waveStrength,
     };
   }
@@ -333,7 +372,11 @@ export class ParticleSphereSimulation {
         const distance = Math.hypot(dx, dy);
         if (distance < pointerRadius && distance > 0.001) {
           const force =
-            (1 - distance / pointerRadius) ** 2 * pointerRadius * 0.13 * this.pointerStrength;
+            (1 - distance / pointerRadius) ** 2 *
+            pointerRadius *
+            0.13 *
+            this.pointerStrength *
+            (1 - this.gatherLevel * 0.82);
           screenX += (dx / distance) * force;
           screenY += (dy / distance) * force;
         }
@@ -368,17 +411,17 @@ export class ParticleSphereSimulation {
         const dx = screenX - waveOriginX;
         const dy = screenY - waveOriginY;
         const distance = Math.max(0.001, Math.hypot(dx, dy));
-        const progress = clamp(this.waveAge / 1.1, 0, 1);
+        const progress = clamp(this.waveAge / 2.2, 0, 1);
         const front = progress * size * 1.22;
-        const thickness = size * 0.085 + this.waveAge * size * 0.014;
+        const thickness = size * 0.12 + this.waveAge * size * 0.012;
         const angle = Math.atan2(dy, dx);
         const organicFront =
           1 +
-          Math.sin(angle * 3.1 + this.time * 1.2) * 0.035 +
-          Math.sin(angle * 6.7 - this.time * 0.9) * 0.018;
+          Math.sin(angle * 3.1 + this.time * 0.8) * 0.035 +
+          Math.sin(angle * 6.7 - this.time * 0.6) * 0.018;
         const gaussian = Math.exp(-(((distance - front * organicFront) / thickness) ** 2));
-        const envelope = (1 - progress) ** 1.4;
-        const displacement = gaussian * envelope * size * 0.105 * this.waveStrength;
+        const envelope = Math.min(1, this.waveAge / 0.28) * (1 - progress) ** 1.5;
+        const displacement = gaussian * envelope * size * 0.1 * this.waveStrength;
         waveBoost = gaussian * envelope * this.waveStrength;
         screenX += (dx / distance) * displacement;
         screenY += (dy / distance) * displacement;
@@ -417,10 +460,15 @@ export class ParticleSphereSimulation {
         (0.55 + depth * 1.5 + this.chargeLevel * 0.1) *
         (size / 300) *
         this.pointSize[index] *
-        (1 + this.reaction * 0.18 + waveBoost * 0.85);
+        (1 + this.reaction * 0.18 + this.burstGlow * 0.2);
       projected[output + 3] = Math.min(
         1,
-        0.38 + depth * 0.56 + this.reaction * 0.08 + this.chargeLevel * 0.08 + waveBoost * 0.62,
+        0.38 +
+          depth * 0.56 +
+          this.reaction * 0.08 +
+          this.chargeLevel * 0.08 +
+          waveBoost * 0.03 +
+          this.burstGlow * 0.16,
       );
     }
 
