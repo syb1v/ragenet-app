@@ -14,9 +14,11 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
     let providerConfig = (protocolConfiguration as? NETunnelProviderProtocol)?
       .providerConfiguration?["xrayConfig"] as? String
     guard let config = optionConfig ?? providerConfig, !config.isEmpty else {
+      TunnelLogStore.error("Tunnel start failed: missing configuration")
       completionHandler(TunnelError.missingConfiguration)
       return
     }
+    TunnelLogStore.info("Tunnel start requested")
 
     lifecycleLock.lock()
     let previous = startTask
@@ -28,6 +30,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
       self.reasserting = true
       do {
         try await self.applyNetworkSettings()
+        TunnelLogStore.info("Tunnel network settings applied")
         let fd = try await self.waitForTunnelDescriptor()
         let runtimeConfig = try self.configWithDescriptor(config, fd: fd)
         try LibXrayRuntime.start(configJSON: runtimeConfig)
@@ -35,10 +38,12 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
           throw TunnelError.xrayNotRunning
         }
         self.reasserting = false
+        TunnelLogStore.info("Tunnel connected")
         completionHandler(nil)
       } catch {
         try? LibXrayRuntime.stop()
         self.reasserting = false
+        TunnelLogStore.error("Tunnel failed: \(error.localizedDescription)")
         completionHandler(error)
       }
     }
@@ -56,8 +61,10 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
     lifecycleLock.unlock()
 
     Task {
+      TunnelLogStore.info("Tunnel stop requested: \(reason.rawValue)")
       try? LibXrayRuntime.stop()
       self.reasserting = false
+      TunnelLogStore.info("Tunnel stopped")
       completionHandler()
     }
   }

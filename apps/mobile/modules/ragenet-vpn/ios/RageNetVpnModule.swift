@@ -1,4 +1,5 @@
 import ExpoModulesCore
+import Network
 import NetworkExtension
 
 public final class RageNetVpnModule: Module {
@@ -48,6 +49,82 @@ public final class RageNetVpnModule: Module {
         manager = try? await loadManager()
       }
       return statusPayload()
+    }
+
+    AsyncFunction("measureLatency") { (host: String, port: Int, timeoutMs: Int) async -> Int? in
+      guard let endpointPort = NWEndpoint.Port(rawValue: UInt16(clamping: port)) else {
+        return nil
+      }
+      return await withCheckedContinuation { (continuation: CheckedContinuation<Int?, Never>) in
+        let started = DispatchTime.now().uptimeNanoseconds
+        let connection = NWConnection(
+          host: NWEndpoint.Host(host),
+          port: endpointPort,
+          using: .tcp
+        )
+        let lock = NSLock()
+        var finished = false
+
+        func finish(_ value: Int?) {
+          lock.lock()
+          if finished {
+            lock.unlock()
+            return
+          }
+          finished = true
+          lock.unlock()
+          connection.cancel()
+          continuation.resume(returning: value)
+        }
+
+        connection.stateUpdateHandler = { state in
+          switch state {
+          case .ready:
+            let elapsed = Int((DispatchTime.now().uptimeNanoseconds - started) / 1_000_000)
+            finish(elapsed)
+          case .failed, .cancelled:
+            finish(nil)
+          default:
+            break
+          }
+        }
+        connection.start(queue: .global(qos: .userInitiated))
+        DispatchQueue.global().asyncAfter(deadline: .now() + Double(timeoutMs) / 1000) {
+          finish(nil)
+        }
+      }
+    }
+
+    Function("getLogs") { () -> [[String: Any]] in
+      guard
+        let directory = FileManager.default.containerURL(
+          forSecurityApplicationGroupIdentifier: "group.net.ragenet.vpn"
+        )
+      else { return [] }
+      let logURL = directory.appendingPathComponent("tunnel.log")
+      guard let contents = try? String(contentsOf: logURL, encoding: .utf8) else { return [] }
+      return contents
+        .split(separator: "\n")
+        .compactMap { line -> [String: Any]? in
+          let parts = line.split(separator: "|", maxSplits: 2, omittingEmptySubsequences: false)
+          guard parts.count == 3, let timestamp = Int64(parts[0]) else { return nil }
+          return [
+            "time": timestamp,
+            "level": String(parts[1]),
+            "message": String(parts[2]),
+          ]
+        }
+    }
+
+    Function("clearLogs") { () -> Bool in
+      guard
+        let directory = FileManager.default.containerURL(
+          forSecurityApplicationGroupIdentifier: "group.net.ragenet.vpn"
+        )
+      else { return false }
+      let logURL = directory.appendingPathComponent("tunnel.log")
+      try? FileManager.default.removeItem(at: logURL)
+      return true
     }
 
     OnCreate {

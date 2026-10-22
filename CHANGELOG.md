@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-22
+
+### Added
+
+- Platform-native icons: SF Symbols on iOS and Material icons on Android.
+- Native iOS action sheet for the subscription menu.
+- Real TCP latency probing through the native VPN bridge.
+- Native tunnel log collection with All/Info/Warn/Error filters, clear and
+  download actions.
+- Animated bottom sheets that slide in and out instead of fading.
+
+### Changed
+
+- Compact home layout: support and Telegram links sit at the bottom, the
+  interaction hint is gone, refresh uses one arrow, and the ping action uses a
+  speedometer that becomes live dots while measuring.
+- Particle positions now use a deterministic Fibonacci shell with layered
+  depth instead of an unconstrained random volume.
+- Settings rows are tighter and the licenses row is removed.
+
 ## [0.1.29] - 2026-10-22
 
 ### Changed

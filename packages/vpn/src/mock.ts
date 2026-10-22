@@ -1,5 +1,11 @@
 import type { VpnStatus } from '@ragenet/core';
-import type { StartVpnOptions, VpnBridge, VpnEventListener } from './types';
+import type {
+  StartVpnOptions,
+  VpnBridge,
+  VpnEventListener,
+  VpnLogEntry,
+  VpnLogEventListener,
+} from './types';
 
 /**
  * Deterministic bridge for UI development. It deliberately prints no secrets
@@ -9,6 +15,8 @@ import type { StartVpnOptions, VpnBridge, VpnEventListener } from './types';
 export class MockVpnBridge implements VpnBridge {
   private status: VpnStatus = { state: 'disconnected' };
   private listeners = new Set<VpnEventListener>();
+  private logListeners = new Set<VpnLogEventListener>();
+  private logs: VpnLogEntry[] = [];
   private timer: ReturnType<typeof setTimeout> | null = null;
 
   async prepare(): Promise<boolean> {
@@ -17,9 +25,11 @@ export class MockVpnBridge implements VpnBridge {
 
   async start(_options: StartVpnOptions): Promise<void> {
     this.stopTimer();
+    this.log('info', 'Mock tunnel start requested');
     this.set({ state: 'connecting', since: Date.now() });
     await new Promise<void>((resolve) => {
       this.timer = setTimeout(() => {
+        this.log('info', 'Mock tunnel connected');
         this.set({
           state: 'connected',
           since: Date.now(),
@@ -32,9 +42,11 @@ export class MockVpnBridge implements VpnBridge {
 
   async stop(): Promise<void> {
     this.stopTimer();
+    this.log('info', 'Mock tunnel stop requested');
     this.set({ state: 'disconnecting' });
     await new Promise<void>((resolve) => {
       this.timer = setTimeout(() => {
+        this.log('info', 'Mock tunnel stopped');
         this.set({ state: 'disconnected' });
         resolve();
       }, 350);
@@ -49,6 +61,29 @@ export class MockVpnBridge implements VpnBridge {
     this.listeners.add(listener);
     listener(this.status);
     return () => this.listeners.delete(listener);
+  }
+
+  async measureLatency(): Promise<number | null> {
+    return null;
+  }
+
+  async getLogs(): Promise<VpnLogEntry[]> {
+    return [...this.logs];
+  }
+
+  async clearLogs(): Promise<void> {
+    this.logs = [];
+  }
+
+  subscribeLogs(listener: VpnLogEventListener): () => void {
+    this.logListeners.add(listener);
+    return () => this.logListeners.delete(listener);
+  }
+
+  private log(level: VpnLogEntry['level'], message: string): void {
+    const entry = { time: Date.now(), level, message };
+    this.logs.push(entry);
+    for (const listener of this.logListeners) listener(entry);
   }
 
   private set(status: VpnStatus): void {

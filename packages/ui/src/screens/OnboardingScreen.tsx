@@ -1,10 +1,10 @@
 import { colors, fonts } from '@ragenet/design';
 import * as Clipboard from 'expo-clipboard';
-import { ClipboardPaste, Keyboard, QrCode } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BrandLockup } from '../components/BrandLockup';
 import { Button } from '../components/Button';
 import { Pill } from '../components/Pill';
+import { PlatformIcon } from '../components/PlatformIcon';
 import { Screen } from '../components/Screen';
 import { useAppStore } from '../store/useAppStore';
 
@@ -41,21 +41,21 @@ export function OnboardingScreen() {
             label="Из буфера"
             onPress={pasteFromClipboard}
             variant="secondary"
-            icon={<ClipboardPaste color={colors.text} size={22} strokeWidth={1.8} />}
+            icon={<PlatformIcon name="clipboard" size={22} color={colors.text} />}
             style={styles.option}
           />
           <Button
             label="QR-код"
             onPress={() => openSheet('addKey', 'qr')}
             variant="secondary"
-            icon={<QrCode color={colors.text} size={22} strokeWidth={1.8} />}
+            icon={<PlatformIcon name="qr" size={22} color={colors.text} />}
             style={styles.option}
           />
           <Button
             label="Вручную"
             onPress={() => openSheet('addKey', 'manual')}
             variant="secondary"
-            icon={<Keyboard color={colors.text} size={22} strokeWidth={1.8} />}
+            icon={<PlatformIcon name="keyboard" size={22} color={colors.text} />}
             style={styles.option}
           />
         </View>

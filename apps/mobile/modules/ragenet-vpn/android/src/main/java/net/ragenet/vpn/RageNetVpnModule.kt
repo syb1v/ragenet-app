@@ -7,15 +7,18 @@ import android.os.Looper
 import androidx.core.content.ContextCompat
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.net.InetSocketAddress
+import java.net.Socket
 
 class RageNetVpnModule : Module() {
   private var removeStatusListener: (() -> Unit)? = null
+  private var removeLogListener: (() -> Unit)? = null
   private val mainHandler = Handler(Looper.getMainLooper())
 
   override fun definition() = ModuleDefinition {
     Name("RageNetVpn")
 
-    Events("onVpnStatus")
+    Events("onVpnStatus", "onVpnLog")
 
     Function("prepare") {
       val context = appContext.reactContext ?: return@Function false
@@ -65,6 +68,39 @@ class RageNetVpnModule : Module() {
       )
     }
 
+    AsyncFunction("measureLatency") { host: String, port: Int, timeoutMs: Int ->
+      var socket: Socket? = null
+      try {
+        socket = Socket()
+        val started = System.nanoTime()
+        socket.connect(InetSocketAddress(host, port), timeoutMs.coerceIn(100, 5000))
+        ((System.nanoTime() - started) / 1_000_000).toInt()
+      } catch (_: Exception) {
+        null
+      } finally {
+        try {
+          socket?.close()
+        } catch (_: Exception) {
+          // Ignore cleanup failures.
+        }
+      }
+    }
+
+    Function("getLogs") {
+      VpnLogStore.snapshot().map { entry ->
+        mapOf(
+          "time" to entry.time,
+          "level" to entry.level,
+          "message" to entry.message,
+        )
+      }
+    }
+
+    Function("clearLogs") {
+      VpnLogStore.clear()
+      true
+    }
+
     OnCreate {
       removeStatusListener = VpnStateStore.addListener { status ->
         mainHandler.post {
@@ -78,11 +114,25 @@ class RageNetVpnModule : Module() {
           )
         }
       }
+      removeLogListener = VpnLogStore.addListener { entry ->
+        mainHandler.post {
+          this@RageNetVpnModule.sendEvent(
+            "onVpnLog",
+            mapOf(
+              "time" to entry.time,
+              "level" to entry.level,
+              "message" to entry.message,
+            ),
+          )
+        }
+      }
     }
 
     OnDestroy {
       removeStatusListener?.invoke()
       removeStatusListener = null
+      removeLogListener?.invoke()
+      removeLogListener = null
     }
   }
 }

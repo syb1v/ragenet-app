@@ -1,12 +1,12 @@
 import { colors, fonts } from '@ragenet/design';
 import { shortHwid } from '@ragenet/core';
 import Constants from 'expo-constants';
-import { ChevronRight, FileText, LifeBuoy, Send, Trash2, Wifi, X } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Card, Divider } from '../components/Card';
 import { Header } from '../components/Header';
 import { IconButton } from '../components/IconButton';
+import { PlatformIcon } from '../components/PlatformIcon';
 import { Screen } from '../components/Screen';
 import { DEMO_SUPPORT_URL } from '../lib/demo';
 import { todayLabel } from '../lib/format';
@@ -50,7 +50,7 @@ function SettingRow({ icon, label, value, onPress, danger, last, mono }: Setting
           </Text>
         ) : null}
         {onPress && !value ? (
-          <ChevronRight color={danger ? colors.danger : colors.text3} size={18} strokeWidth={1.8} />
+          <PlatformIcon name="chevron" size={18} color={danger ? colors.danger : colors.text3} />
         ) : null}
       </Pressable>
       {!last ? <Divider inset={14} /> : null}
@@ -102,7 +102,7 @@ export function SettingsScreen({ onClose }: SettingsScreenProps = {}) {
             accessibilityLabel="Закрыть настройки"
             onPress={onClose ?? (() => navigate('home'))}
           >
-            <X color={colors.text} size={22} strokeWidth={1.8} />
+            <PlatformIcon name="close" size={22} color={colors.text} />
           </IconButton>
         }
         title="Настройки"
@@ -118,22 +118,24 @@ export function SettingsScreen({ onClose }: SettingsScreenProps = {}) {
         <SectionLabel>Ссылки</SectionLabel>
         <Card padded={false}>
           <SettingRow
-            icon={<Wifi color={colors.brandStrong} size={21} strokeWidth={1.7} />}
+            icon={
+              <PlatformIcon name="wifi" size={21} color={colors.brandStrong} strokeWidth={1.7} />
+            }
             label="Сервер по типу сети"
             onPress={() => showToast('Появится в следующей сборке')}
           />
           <SettingRow
-            icon={<FileText color={colors.brandStrong} size={21} strokeWidth={1.7} />}
+            icon={<PlatformIcon name="file" size={21} color={colors.brandStrong} />}
             label="Логи"
             onPress={() => navigate('logs')}
           />
           <SettingRow
-            icon={<LifeBuoy color={colors.brandStrong} size={21} strokeWidth={1.7} />}
+            icon={<PlatformIcon name="support" size={21} color={colors.brandStrong} />}
             label="Поддержка"
             onPress={openSupport}
           />
           <SettingRow
-            icon={<Send color={colors.brandStrong} size={20} strokeWidth={1.7} />}
+            icon={<PlatformIcon name="send" size={20} color={colors.brandStrong} />}
             label="Telegram-бот"
             onPress={openBot}
             last
@@ -144,7 +146,7 @@ export function SettingsScreen({ onClose }: SettingsScreenProps = {}) {
           <Card padded={false}>
             <SettingRow
               danger
-              icon={<Trash2 color={colors.danger} size={21} strokeWidth={1.7} />}
+              icon={<PlatformIcon name="trash" size={21} color={colors.danger} />}
               label="Сбросить приложение"
               onPress={() => openSheet('reset')}
               last
@@ -163,11 +165,6 @@ export function SettingsScreen({ onClose }: SettingsScreenProps = {}) {
           <SettingRow label="Дата сборки" value={todayLabel()} />
           <SettingRow label="Версия ядра" value="Xray 26.10" mono />
           <SettingRow label="ID устройства" value={shortHwid(DEVICE.hwid)} mono />
-          <SettingRow
-            label="Лицензии"
-            onPress={() => showToast('AGPL-3.0 · Xray MPL-2.0 · libXray MIT')}
-            last
-          />
         </Card>
 
         <Text style={styles.footer}>
@@ -194,7 +191,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: 12,
-    minHeight: 58,
+    minHeight: 52,
     paddingHorizontal: 14,
   },
   pressed: {

@@ -1,6 +1,5 @@
 import { colors, fonts, radii } from '@ragenet/design';
 import * as Clipboard from 'expo-clipboard';
-import { ClipboardPaste, QrCode } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,6 +14,7 @@ import {
 } from 'react-native';
 import { BottomSheet } from '../components/BottomSheet';
 import { Button } from '../components/Button';
+import { PlatformIcon } from '../components/PlatformIcon';
 import { errorHaptic } from '../lib/haptics';
 import { useAppStore } from '../store/useAppStore';
 
@@ -119,7 +119,7 @@ export function AddKeySheet() {
             <View style={[styles.corner, styles.cornerTopRight]} />
             <View style={[styles.corner, styles.cornerBottomLeft]} />
             <View style={[styles.corner, styles.cornerBottomRight]} />
-            <QrCode color={colors.text2} size={58} strokeWidth={1.2} />
+            <PlatformIcon name="qr" size={58} color={colors.text2} />
           </View>
           <Text style={styles.qrTitle}>Наведите камеру на QR-код подписки</Text>
           <Text style={styles.qrHint}>
@@ -129,7 +129,7 @@ export function AddKeySheet() {
             label="Вставить из буфера"
             onPress={paste}
             variant="secondary"
-            icon={<ClipboardPaste color={colors.text} size={19} strokeWidth={1.8} />}
+            icon={<PlatformIcon name="clipboard" size={19} color={colors.text} />}
             style={styles.fullButton}
           />
         </View>
@@ -162,7 +162,7 @@ export function AddKeySheet() {
             onPress={paste}
             style={({ pressed }) => [styles.pasteRow, pressed && styles.pressed]}
           >
-            <ClipboardPaste color={colors.violet} size={18} strokeWidth={1.8} />
+            <PlatformIcon name="clipboard" size={18} color={colors.violet} />
             <Text style={styles.pasteText}>Вставить из буфера</Text>
           </Pressable>
 

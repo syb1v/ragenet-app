@@ -1,11 +1,11 @@
 import { colors, fonts, radii } from '@ragenet/design';
 import * as Clipboard from 'expo-clipboard';
-import { Copy, Share2, X } from 'lucide-react-native';
 import { Platform, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { BottomSheet } from '../components/BottomSheet';
 import { Button } from '../components/Button';
 import { IconButton } from '../components/IconButton';
+import { PlatformIcon } from '../components/PlatformIcon';
 import { useAppStore } from '../store/useAppStore';
 
 export function QrSheet() {
@@ -44,7 +44,7 @@ export function QrSheet() {
   const header = (
     <View style={styles.header}>
       <IconButton accessibilityLabel="Закрыть QR-код" onPress={closeSheet}>
-        <X color={colors.text} size={21} strokeWidth={1.8} />
+        <PlatformIcon name="close" size={21} color={colors.text} />
       </IconButton>
       <Text style={styles.title}>QR-код</Text>
       <View style={styles.spacer} />
@@ -73,14 +73,14 @@ export function QrSheet() {
             label="Скопировать"
             onPress={copy}
             variant="secondary"
-            icon={<Copy color={colors.text} size={18} strokeWidth={1.8} />}
+            icon={<PlatformIcon name="copy" size={18} color={colors.text} />}
             style={styles.actionButton}
           />
           <Button
             label="Поделиться"
             onPress={share}
             variant="ghost"
-            icon={<Share2 color={colors.brandStrong} size={18} strokeWidth={1.8} />}
+            icon={<PlatformIcon name="share" size={18} color={colors.brandStrong} />}
             style={styles.actionButton}
           />
         </View>

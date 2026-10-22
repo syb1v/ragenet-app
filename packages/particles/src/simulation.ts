@@ -87,16 +87,18 @@ export class ParticleSphereSimulation {
     const random = mulberry32(options.seed ?? 0x5eed);
 
     for (let index = 0; index < this.count; index += 1) {
-      const y = 1 - (index / Math.max(1, this.count - 1)) * 2;
+      // A deterministic Fibonacci shell: golden-angle spacing, a quiet depth
+      // layer, and only a few pixels of seeded jitter so the lattice reads as
+      // an organic sphere rather than a generated grid.
+      const y = 1 - ((index + 0.5) / Math.max(1, this.count)) * 2;
       const ringRadius = Math.sqrt(Math.max(0, 1 - y * y));
-      const theta = index * GOLDEN_ANGLE + (random() - 0.5) * 0.14;
+      const theta = index * GOLDEN_ANGLE;
 
       let x = Math.cos(theta) * ringRadius;
       let yy = y;
       let z = Math.sin(theta) * ringRadius;
 
-      // Jitter the lattice just enough to remove the synthetic regularity.
-      const jitter = 0.02 + random() * 0.05;
+      const jitter = 0.012 + random() * 0.035;
       x += (random() - 0.5) * jitter;
       yy += (random() - 0.5) * jitter;
       z += (random() - 0.5) * jitter;
@@ -105,14 +107,13 @@ export class ParticleSphereSimulation {
       yy /= length;
       z /= length;
 
-      // Three quiet shells keep the cloud volumetric and less lattice-like.
       const shellRoll = random();
       const radius =
-        shellRoll < 0.7
-          ? 0.988 + random() * 0.022
-          : shellRoll < 0.92
-            ? 0.79 + random() * 0.06
-            : 0.59 + random() * 0.07;
+        shellRoll < 0.84
+          ? 0.965 + random() * 0.045
+          : shellRoll < 0.96
+            ? 0.82 + random() * 0.07
+            : 0.68 + random() * 0.08;
       const offset = index * 3;
       this.base[offset] = x * radius;
       this.base[offset + 1] = yy * radius;
@@ -127,7 +128,7 @@ export class ParticleSphereSimulation {
       this.velocity[offset + 2] = (random() - 0.5) * 0.02;
 
       this.phase[index] = random() * TAU;
-      this.pointSize[index] = 0.9 + random() * 0.72;
+      this.pointSize[index] = 0.82 + random() * 0.62;
     }
   }
 
@@ -466,7 +467,7 @@ export class ParticleSphereSimulation {
       projected[output] = screenX;
       projected[output + 1] = screenY;
       projected[output + 2] =
-        (0.48 + depth * 1.25 + this.chargeLevel * 0.08) *
+        (0.44 + depth * 1.15 + this.chargeLevel * 0.08) *
         (size / 300) *
         this.pointSize[index] *
         (1 + this.reaction * 0.18 + this.burstGlow * 0.2);

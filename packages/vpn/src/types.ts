@@ -13,6 +13,14 @@ export interface StartVpnOptions {
 
 export type VpnEventListener = (status: VpnStatus) => void;
 
+export interface VpnLogEntry {
+  time: number;
+  level: 'info' | 'warn' | 'error';
+  message: string;
+}
+
+export type VpnLogEventListener = (entry: VpnLogEntry) => void;
+
 /**
  * The only surface UI code should use for the tunnel.
  *
@@ -25,4 +33,8 @@ export interface VpnBridge {
   stop(): Promise<void>;
   getStatus(): Promise<VpnStatus>;
   subscribe(listener: VpnEventListener): () => void;
+  measureLatency?(host: string, port: number, timeoutMs?: number): Promise<number | null>;
+  getLogs?(): Promise<VpnLogEntry[]>;
+  clearLogs?(): Promise<void>;
+  subscribeLogs?(listener: VpnLogEventListener): () => void;
 }

@@ -154,6 +154,6 @@ export const layout = {
   desktopWindowWidth: 460,
   desktopWindowHeight: 900,
   headerHeight: 56,
-  buttonHeight: 56,
-  rowHeight: 58,
+  buttonHeight: 48,
+  rowHeight: 52,
 } as const;

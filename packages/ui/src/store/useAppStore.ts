@@ -48,11 +48,14 @@ interface AppState {
   logs: LogEntry[];
   toast: string | null;
   isRefreshing: boolean;
+  isPinging: boolean;
 
   loadDemo: () => void;
   addSubscription: (input: string) => Promise<void>;
   refreshSubscription: () => Promise<void>;
   pingServers: () => Promise<void>;
+  loadNativeLogs: () => Promise<void>;
+  clearLogs: () => Promise<void>;
   selectServer: (id: string) => void;
   deleteSubscription: () => void;
   initVpn: () => void;
@@ -124,7 +127,7 @@ function initialLogs(): LogEntry[] {
       id: 'boot',
       time: Date.now(),
       level: 'info',
-      message: 'RageNet 0.1.7 · native VPN bridge',
+      message: `RageNet ${Constants.expoConfig?.version ?? '0.1.29'} · native VPN bridge`,
     },
   ];
 }
@@ -142,6 +145,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   logs: initialLogs(),
   toast: null,
   isRefreshing: false,
+  isPinging: false,
 
   addLog: (message, level = 'info') =>
     set((state) => ({
@@ -249,20 +253,78 @@ export const useAppStore = create<AppState>((set, get) => ({
   pingServers: async () => {
     const { servers } = get();
     if (servers.length === 0) return;
+    const bridge = getVpnBridge();
+    if (!bridge.measureLatency) {
+      get().addLog('Реальный пинг недоступен на этой платформе', 'warn');
+      return;
+    }
+
     set({
+      isPinging: true,
       servers: servers.map((server) => ({ ...server, latencyMs: undefined })),
     });
-    await new Promise((resolve) => setTimeout(resolve, 650));
-    const measured = get().servers.map((server) => ({
-      ...server,
-      latencyMs: 22 + Math.floor(Math.random() * 110),
-    }));
+    const measured = await Promise.all(
+      servers.map(async (server) => {
+        let latency: number | null = null;
+        try {
+          latency = (await bridge.measureLatency?.(server.host, server.port)) ?? null;
+        } catch {
+          latency = null;
+        }
+        if (latency != null) {
+          set((state) => ({
+            servers: state.servers.map((entry) =>
+              entry.id === server.id ? { ...entry, latencyMs: latency } : entry,
+            ),
+          }));
+        }
+        return { ...server, latencyMs: latency ?? undefined };
+      }),
+    );
     const subscription = get().subscription;
     set({
+      isPinging: false,
       servers: measured,
       subscription: subscription ? { ...subscription, servers: measured } : null,
     });
-    get().addLog(`Пинг завершён · ${measured.length} серверов`);
+    const answered = measured.filter((server) => server.latencyMs != null).length;
+    get().addLog(`Пинг завершён · ${answered}/${measured.length} серверов`);
+  },
+
+  loadNativeLogs: async () => {
+    const bridge = getVpnBridge();
+    if (!bridge.getLogs) return;
+    try {
+      const entries = await bridge.getLogs();
+      if (entries.length === 0) return;
+      set((state) => {
+        const existing = new Set(state.logs.map((entry) => entry.id));
+        const nativeLogs = entries
+          .slice(-300)
+          .map((entry) => ({
+            id: `native-${entry.time}-${entry.message.slice(0, 24)}`,
+            time: entry.time,
+            level: entry.level,
+            message: entry.message,
+          }))
+          .filter((entry) => !existing.has(entry.id));
+        return {
+          logs: [...state.logs, ...nativeLogs].sort((a, b) => a.time - b.time).slice(-500),
+        };
+      });
+    } catch {
+      // Native logs are diagnostic only.
+    }
+  },
+
+  clearLogs: async () => {
+    const bridge = getVpnBridge();
+    try {
+      await bridge.clearLogs?.();
+    } catch {
+      // Clearing native logs is best effort.
+    }
+    set({ logs: initialLogs() });
   },
 
   selectServer: (id) => {
@@ -296,6 +358,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       .getStatus()
       .then((status) => set({ vpnStatus: status }))
       .catch(() => undefined);
+    bridge.subscribeLogs?.((entry) => get().addLog(entry.message, entry.level));
   },
 
   toggleConnection: async () => {

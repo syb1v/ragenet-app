@@ -1,16 +1,5 @@
 import { colors, fonts } from '@ragenet/design';
 import { flagForCountryCode } from '@ragenet/core';
-import {
-  ArrowUpDown,
-  Calendar,
-  ChevronsUpDown,
-  Headphones,
-  MoreHorizontal,
-  Plus,
-  RefreshCw,
-  Send,
-  Settings,
-} from 'lucide-react-native';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import {
   ActivityIndicator,
@@ -24,6 +13,8 @@ import {
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { IconButton } from '../components/IconButton';
+import { PingDots } from '../components/PingDots';
+import { PlatformIcon } from '../components/PlatformIcon';
 import { Screen } from '../components/Screen';
 import { ParticleSphere } from '../components/particles/ParticleSphere';
 import { errorHaptic, successHaptic } from '../lib/haptics';
@@ -47,6 +38,8 @@ export function HomeScreen() {
   const vpnStatus = useAppStore((state) => state.vpnStatus);
   const isRefreshing = useAppStore((state) => state.isRefreshing);
   const openSubscriptionMenu = useAppStore((state) => state.openSubscriptionMenu);
+  const pingServers = useAppStore((state) => state.pingServers);
+  const isPinging = useAppStore((state) => state.isPinging);
 
   const navigate = useAppStore((state) => state.navigate);
   const openSheet = useAppStore((state) => state.openSheet);
@@ -57,7 +50,6 @@ export function HomeScreen() {
   const previousState = useRef(vpnStatus.state);
   const moreButtonRef = useRef<ComponentRef<typeof View>>(null);
   const [connectedSeconds, setConnectedSeconds] = useState(0);
-  const [chargeProgress, setChargeProgress] = useState<number | null>(null);
 
   useEffect(() => {
     if (previousState.current !== vpnStatus.state) {
@@ -111,12 +103,12 @@ export function HomeScreen() {
       <Header
         left={
           <IconButton accessibilityLabel="Настройки" onPress={() => navigate('settings')}>
-            <Settings color={colors.text} size={20} strokeWidth={1.8} />
+            <PlatformIcon name="settings" size={20} color={colors.text} />
           </IconButton>
         }
         right={
           <IconButton accessibilityLabel="Добавить ключ" onPress={() => openSheet('addKey')}>
-            <Plus color={colors.text} size={22} strokeWidth={1.8} />
+            <PlatformIcon name="plus" size={22} color={colors.text} />
           </IconButton>
         }
       />
@@ -127,11 +119,7 @@ export function HomeScreen() {
         bounces={false}
       >
         <View style={styles.coreArea}>
-          <ParticleSphere
-            state={vpnStatus.state}
-            onToggle={toggleConnection}
-            onChargeProgress={setChargeProgress}
-          />
+          <ParticleSphere state={vpnStatus.state} onToggle={toggleConnection} />
           <View
             style={[
               styles.statusPill,
@@ -165,17 +153,6 @@ export function HomeScreen() {
               {String(connectedSeconds % 60).padStart(2, '0')}
             </Text>
           ) : null}
-          <Text style={styles.hint}>
-            {isConnected
-              ? 'Коснитесь, чтобы отключиться'
-              : chargeProgress != null
-                ? chargeProgress >= 1
-                  ? 'Сфера собирается'
-                  : `Удерживайте ${Math.max(0, 8 - chargeProgress * 8).toFixed(1)} с`
-                : vpnStatus.state === 'connecting'
-                  ? 'Сфера собирается'
-                  : 'Коснитесь для волны · удерживайте 8 секунд'}
-          </Text>
         </View>
 
         <View style={styles.info}>
@@ -187,6 +164,13 @@ export function HomeScreen() {
               <Text style={styles.updated}>Обновлено {formatUpdated(subscription.updatedAt)}</Text>
             </View>
             <View style={styles.subscriptionActions}>
+              <IconButton accessibilityLabel="Проверить пинг" onPress={pingServers} size={40}>
+                {isPinging ? (
+                  <PingDots color={colors.text2} />
+                ) : (
+                  <PlatformIcon name="gauge" size={19} color={colors.text2} />
+                )}
+              </IconButton>
               <IconButton
                 accessibilityLabel="Обновить подписку"
                 onPress={refreshSubscription}
@@ -195,7 +179,7 @@ export function HomeScreen() {
                 {isRefreshing ? (
                   <ActivityIndicator color={colors.text2} size="small" />
                 ) : (
-                  <RefreshCw color={colors.text2} size={18} strokeWidth={1.8} />
+                  <PlatformIcon name="refresh" size={18} color={colors.text2} />
                 )}
               </IconButton>
               <View ref={moreButtonRef} collapsable={false}>
@@ -208,7 +192,7 @@ export function HomeScreen() {
                   }}
                   size={40}
                 >
-                  <MoreHorizontal color={colors.text2} size={19} strokeWidth={1.8} />
+                  <PlatformIcon name="more" size={19} color={colors.text2} />
                 </IconButton>
               </View>
             </View>
@@ -217,7 +201,7 @@ export function HomeScreen() {
           <View style={styles.dataStrip}>
             <View style={styles.dataCell}>
               <View style={styles.dataLabelRow}>
-                <ArrowUpDown color={colors.text2} size={14} strokeWidth={1.8} />
+                <PlatformIcon name="traffic" size={14} color={colors.text2} />
                 <Text style={styles.dataLabel}>Трафик</Text>
               </View>
               <Text style={styles.dataValue}>
@@ -230,7 +214,7 @@ export function HomeScreen() {
             <View style={styles.dataDivider} />
             <View style={styles.dataCell}>
               <View style={styles.dataLabelRow}>
-                <Calendar color={colors.text2} size={14} strokeWidth={1.8} />
+                <PlatformIcon name="calendar" size={14} color={colors.text2} />
                 <Text style={styles.dataLabel}>Действует до</Text>
               </View>
               <Text style={styles.dataValue}>{formatDate(subscription.meta.expiresAt)}</Text>
@@ -249,20 +233,24 @@ export function HomeScreen() {
               <Text style={styles.serverName} numberOfLines={1}>
                 {serverName}
               </Text>
-              {selectedServer?.latencyMs ? (
-                <Text style={styles.serverPing}>{selectedServer.latencyMs} мс</Text>
-              ) : (
-                <Text style={styles.serverPing}>Пинг не измерен</Text>
-              )}
+              <Text style={styles.serverPing}>
+                {isPinging
+                  ? 'Проверяем…'
+                  : selectedServer?.latencyMs != null
+                    ? `${selectedServer.latencyMs} мс`
+                    : '—'}
+              </Text>
             </View>
-            <ChevronsUpDown color={colors.text2} size={19} strokeWidth={1.8} />
+            <PlatformIcon name="server" size={19} color={colors.text2} />
           </Pressable>
+
+          <View style={styles.bottomSpacer} />
 
           <Button
             label="Поддержка"
             onPress={openSupport}
             variant="secondary"
-            icon={<Headphones color={colors.text2} size={20} strokeWidth={1.8} />}
+            icon={<PlatformIcon name="support" size={20} color={colors.text2} />}
             style={styles.supportButton}
           />
           <Pressable
@@ -271,7 +259,7 @@ export function HomeScreen() {
             onPress={openBot}
             style={styles.botLink}
           >
-            <Send color={colors.text3} size={14} strokeWidth={1.8} />
+            <PlatformIcon name="send" size={14} color={colors.text3} />
             <Text style={styles.botLinkText}>Открыть Telegram-бота</Text>
           </Pressable>
         </View>
@@ -288,8 +276,8 @@ const styles = StyleSheet.create({
   coreArea: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 330,
-    paddingBottom: 4,
+    minHeight: 300,
+    paddingBottom: 2,
     paddingTop: 2,
   },
   statusPill: {
@@ -358,8 +346,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   info: {
-    gap: 10,
-    marginTop: 8,
+    flexGrow: 1,
+    gap: 9,
+    marginTop: 12,
+  },
+  bottomSpacer: {
+    flexGrow: 1,
+    minHeight: 14,
   },
   subscriptionRow: {
     alignItems: 'center',
@@ -386,15 +379,15 @@ const styles = StyleSheet.create({
   },
   subscriptionActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   dataStrip: {
     backgroundColor: 'rgba(21, 30, 47, 0.54)',
     borderColor: colors.line,
-    borderRadius: 17,
+    borderRadius: 16,
     borderWidth: 1,
     flexDirection: 'row',
-    minHeight: 66,
+    minHeight: 58,
   },
   dataCell: {
     flex: 1,
@@ -440,7 +433,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: 12,
-    minHeight: 56,
+    minHeight: 52,
     paddingHorizontal: 12,
   },
   pressed: {
@@ -468,8 +461,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   supportButton: {
-    borderRadius: 15,
-    height: 46,
+    borderRadius: 14,
+    height: 44,
     marginTop: 0,
   },
   botLink: {

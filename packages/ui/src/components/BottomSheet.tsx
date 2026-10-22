@@ -1,6 +1,7 @@
 import { colors, radii, shadows } from '@ragenet/design';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
+  Animated,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -22,34 +23,73 @@ interface BottomSheetProps {
 
 export function BottomSheet({ visible, onClose, children, header, style }: BottomSheetProps) {
   const insets = useSafeAreaInsets();
+  const [mounted, setMounted] = useState(visible);
+  const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      progress.setValue(0);
+      Animated.spring(progress, {
+        toValue: 1,
+        damping: 24,
+        stiffness: 260,
+        mass: 0.82,
+        useNativeDriver: true,
+      }).start();
+      return;
+    }
+
+    if (!mounted) return;
+    Animated.timing(progress, {
+      toValue: 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setMounted(false);
+    });
+  }, [progress, visible]);
+
+  if (!mounted) return null;
+
+  const translateY = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [520, 0],
+  });
 
   return (
     <Modal
-      animationType="fade"
+      animationType="none"
       transparent
-      visible={visible}
+      visible={mounted}
       onRequestClose={onClose}
       statusBarTranslucent
     >
       <View style={styles.root} testID="bottom-sheet-root">
-        <Pressable
-          accessibilityLabel="Закрыть"
-          accessibilityRole="button"
-          onPress={onClose}
-          style={styles.backdrop}
-        />
+        <Animated.View style={[styles.backdrop, { opacity: progress }]}>
+          <Pressable
+            accessibilityLabel="Закрыть"
+            accessibilityRole="button"
+            onPress={onClose}
+            style={styles.backdropPress}
+          />
+        </Animated.View>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboard}
         >
-          <View
-            style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }, style]}
+          <Animated.View
+            style={[
+              styles.sheet,
+              { paddingBottom: Math.max(insets.bottom, 16), transform: [{ translateY }] },
+              style,
+            ]}
             testID="bottom-sheet"
           >
             <View style={styles.handle} />
             {header}
             {children}
-          </View>
+          </Animated.View>
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -69,14 +109,17 @@ const styles = StyleSheet.create({
     left: 0,
     backgroundColor: colors.black70,
   },
+  backdropPress: {
+    flex: 1,
+  },
   keyboard: {
     justifyContent: 'flex-end',
   },
   sheet: {
     backgroundColor: '#0B1220',
     borderColor: colors.line,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingTop: 8,

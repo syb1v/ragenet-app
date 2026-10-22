@@ -40,6 +40,7 @@ class RageNetVpnService : VpnService() {
   override fun onCreate() {
     super.onCreate()
     createNotificationChannel()
+    VpnLogStore.append("info", "Tunnel service created")
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -49,9 +50,11 @@ class RageNetVpnService : VpnService() {
         val config = intent.getStringExtra(EXTRA_CONFIG)
         if (config.isNullOrBlank()) {
           VpnStateStore.update("error", "Пустой Xray-конфиг")
+          VpnLogStore.append("error", "Tunnel start cancelled: empty configuration")
           stopSelf()
           return START_NOT_STICKY
         }
+        VpnLogStore.append("info", "Tunnel start requested")
         startForegroundNotification("Подключение…")
         executor.execute { startTunnel(config) }
       }
@@ -60,6 +63,7 @@ class RageNetVpnService : VpnService() {
   }
 
   override fun onRevoke() {
+    VpnLogStore.append("warn", "VPN permission revoked by the system")
     stopTunnel()
   }
 
@@ -72,6 +76,7 @@ class RageNetVpnService : VpnService() {
   private fun startTunnel(configJson: String) {
     if (running) return
     VpnStateStore.update("connecting")
+    VpnLogStore.append("info", "Tunnel connecting")
     try {
       val builder = Builder()
         .setSession("RageNet VPN")
@@ -88,6 +93,7 @@ class RageNetVpnService : VpnService() {
         builder.addDisallowedApplication(packageName)
       } catch (error: Exception) {
         Log.w(TAG, "Could not exclude RageNet from the tunnel", error)
+        VpnLogStore.append("warn", "Could not exclude RageNet from the tunnel")
       }
 
       val descriptor = builder.establish()
@@ -118,9 +124,11 @@ class RageNetVpnService : VpnService() {
 
       running = true
       VpnStateStore.update("connected")
+      VpnLogStore.append("info", "Tunnel connected")
       updateNotification("Подключено")
     } catch (error: Exception) {
       Log.e(TAG, "Failed to start Xray", error)
+      VpnLogStore.append("error", "Tunnel failed: ${error.message ?: "Xray start error"}")
       releaseTunnel()
       VpnStateStore.update("error", error.message ?: "Не удалось запустить Xray")
       stopForeground(STOP_FOREGROUND_REMOVE)
@@ -134,6 +142,7 @@ class RageNetVpnService : VpnService() {
       return
     }
     VpnStateStore.update("disconnecting")
+    VpnLogStore.append("info", "Tunnel stopping")
     try {
       val request = JSONObject()
         .put("apiVersion", LibXray.LibXrayAPIVersion)
@@ -141,14 +150,17 @@ class RageNetVpnService : VpnService() {
       LibXray.invoke(request.toString())
     } catch (error: Exception) {
       Log.w(TAG, "stopXray failed", error)
+      VpnLogStore.append("warn", "stopXray failed: ${error.message ?: "unknown error"}")
     }
     try {
       LibXray.resetDNS()
     } catch (error: Exception) {
       Log.w(TAG, "resetDNS failed", error)
+      VpnLogStore.append("warn", "resetDNS failed: ${error.message ?: "unknown error"}")
     }
     releaseTunnel()
     VpnStateStore.update("disconnected")
+    VpnLogStore.append("info", "Tunnel stopped")
     stopForeground(STOP_FOREGROUND_REMOVE)
     stopSelf()
   }
@@ -159,6 +171,7 @@ class RageNetVpnService : VpnService() {
       tunnel?.close()
     } catch (error: Exception) {
       Log.w(TAG, "TUN close failed", error)
+      VpnLogStore.append("warn", "TUN close failed: ${error.message ?: "unknown error"}")
     }
     tunnel = null
   }

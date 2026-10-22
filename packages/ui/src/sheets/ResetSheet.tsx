@@ -1,9 +1,9 @@
 import { colors, fonts, radii } from '@ragenet/design';
-import { X } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 import { BottomSheet } from '../components/BottomSheet';
 import { Button } from '../components/Button';
 import { IconButton } from '../components/IconButton';
+import { PlatformIcon } from '../components/PlatformIcon';
 import { useAppStore } from '../store/useAppStore';
 
 export function ResetSheet() {
@@ -15,7 +15,7 @@ export function ResetSheet() {
   const header = (
     <View style={styles.header}>
       <IconButton accessibilityLabel="Закрыть" onPress={closeSheet}>
-        <X color={colors.text} size={21} strokeWidth={1.8} />
+        <PlatformIcon name="close" size={21} color={colors.text} />
       </IconButton>
       <Text style={styles.title}>Сброс приложения</Text>
       <View style={styles.spacer} />

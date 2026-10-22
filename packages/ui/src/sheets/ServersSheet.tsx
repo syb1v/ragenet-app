@@ -1,9 +1,10 @@
 import { colors, fonts, radii } from '@ragenet/design';
 import { flagForCountryCode } from '@ragenet/core';
-import { Radar, X } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomSheet } from '../components/BottomSheet';
 import { IconButton } from '../components/IconButton';
+import { PingDots } from '../components/PingDots';
+import { PlatformIcon } from '../components/PlatformIcon';
 import { stripFlag } from '../lib/format';
 import { useAppStore } from '../store/useAppStore';
 
@@ -14,15 +15,20 @@ export function ServersSheet() {
   const closeSheet = useAppStore((state) => state.closeSheet);
   const selectServer = useAppStore((state) => state.selectServer);
   const pingServers = useAppStore((state) => state.pingServers);
+  const isPinging = useAppStore((state) => state.isPinging);
 
   const header = (
     <View style={styles.header}>
       <IconButton accessibilityLabel="Закрыть выбор сервера" onPress={closeSheet}>
-        <X color={colors.text} size={21} strokeWidth={1.8} />
+        <PlatformIcon name="close" size={21} color={colors.text} />
       </IconButton>
       <Text style={styles.title}>Выбор сервера</Text>
       <IconButton accessibilityLabel="Проверить пинг" onPress={pingServers}>
-        <Radar color={colors.text} size={20} strokeWidth={1.8} />
+        {isPinging ? (
+          <PingDots color={colors.text} />
+        ) : (
+          <PlatformIcon name="gauge" size={20} color={colors.text} />
+        )}
       </IconButton>
     </View>
   );
@@ -102,7 +108,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   scroll: {
-    maxHeight: 540,
+    maxHeight: 500,
   },
   list: {
     paddingBottom: 8,
@@ -113,7 +119,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: 12,
-    minHeight: 58,
+    minHeight: 53,
     paddingHorizontal: 10,
     position: 'relative',
   },

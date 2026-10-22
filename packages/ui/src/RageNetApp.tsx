@@ -120,8 +120,7 @@ export function RageNetApp() {
           <OnboardingScreen />
         ) : (
           <>
-            <HomeScreen />
-            {screen === 'logs' ? <LogsScreen /> : null}
+            {screen === 'logs' ? <LogsScreen /> : <HomeScreen />}
             <SettingsModal visible={screen === 'settings'} onClose={() => navigate('home')} />
           </>
         )}

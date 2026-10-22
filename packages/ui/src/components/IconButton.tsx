@@ -44,7 +44,7 @@ export function IconButton({
           backgroundColor,
           borderColor,
           opacity: pressed ? 0.7 : 1,
-          transform: [{ scale: pressed ? 0.94 : 1 }],
+          transform: [{ scale: pressed && Platform.OS === 'ios' ? 0.93 : 1 }],
         },
         style,
       ]}

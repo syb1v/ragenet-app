@@ -1,8 +1,8 @@
 import { colors, fonts, radii } from '@ragenet/design';
 import * as Clipboard from 'expo-clipboard';
-import { Copy, QrCode, Share2, Trash2 } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
+  ActionSheetIOS,
   Animated,
   Platform,
   Pressable,
@@ -12,6 +12,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import { PlatformIcon } from './PlatformIcon';
 import { useAppStore } from '../store/useAppStore';
 
 const MENU_WIDTH = 224;
@@ -38,6 +39,39 @@ export function SubscriptionMenu() {
     }).start();
   }, [anchor, progress]);
 
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !anchor || !subscription) return;
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: [
+          'Отмена',
+          'Показать QR-код',
+          'Поделиться',
+          'Скопировать ссылку',
+          'Удалить подписку',
+        ],
+        cancelButtonIndex: 0,
+        destructiveButtonIndex: 4,
+        title: subscription.meta.title ?? 'Подписка',
+      },
+      (index) => {
+        closeMenu();
+        if (index === 1) openSheet('qr');
+        if (index === 2) {
+          Share.share({ message: subscription.url, url: subscription.url }).catch(() =>
+            showToast('Не удалось поделиться ссылкой'),
+          );
+        }
+        if (index === 3) {
+          Clipboard.setStringAsync(subscription.url)
+            .then(() => showToast('Ссылка скопирована'))
+            .catch(() => showToast('Не удалось скопировать ссылку'));
+        }
+        if (index === 4) openSheet('delete');
+      },
+    );
+  }, [anchor, closeMenu, openSheet, showToast, subscription]);
+
   const position = useMemo(() => {
     if (!anchor) return { left: 0, top: 0 };
     const left = Math.max(
@@ -51,6 +85,7 @@ export function SubscriptionMenu() {
   }, [anchor, windowHeight, windowWidth]);
 
   if (!anchor || !subscription) return null;
+  if (Platform.OS === 'ios') return null;
 
   const copy = async () => {
     closeMenu();
@@ -116,24 +151,24 @@ export function SubscriptionMenu() {
         ]}
       >
         <MenuRow
-          icon={<QrCode color={colors.brandStrong} size={18} strokeWidth={1.8} />}
+          icon={<PlatformIcon name="qr" size={18} color={colors.brandStrong} />}
           label="Показать QR-код"
           onPress={openQr}
         />
         <MenuRow
-          icon={<Share2 color={colors.brandStrong} size={17} strokeWidth={1.8} />}
+          icon={<PlatformIcon name="share" size={17} color={colors.brandStrong} />}
           label="Поделиться"
           onPress={share}
         />
         <MenuRow
-          icon={<Copy color={colors.brandStrong} size={17} strokeWidth={1.8} />}
+          icon={<PlatformIcon name="copy" size={17} color={colors.brandStrong} />}
           label="Скопировать ссылку"
           onPress={copy}
         />
         <View style={styles.divider} />
         <MenuRow
           danger
-          icon={<Trash2 color={colors.danger} size={18} strokeWidth={1.8} />}
+          icon={<PlatformIcon name="trash" size={18} color={colors.danger} />}
           label="Удалить подписку"
           onPress={remove}
         />

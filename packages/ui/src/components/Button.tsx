@@ -78,8 +78,8 @@ export function Button({
         {
           backgroundColor: variantStyle.backgroundColor,
           borderColor: variantStyle.borderColor,
-          opacity: disabled ? 0.45 : pressed ? 0.86 : 1,
-          transform: [{ scale: pressed && !disabled ? 0.985 : 1 }],
+          opacity: disabled ? 0.45 : pressed ? 0.84 : 1,
+          transform: [{ scale: pressed && !disabled && Platform.OS === 'ios' ? 0.975 : 1 }],
         },
         style,
       ]}
@@ -94,7 +94,7 @@ export function Button({
 const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
-    borderRadius: radii.md,
+    borderRadius: Platform.OS === 'android' ? radii.sm : radii.md,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 10,
