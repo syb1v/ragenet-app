@@ -49,6 +49,7 @@ export function ParticleSphere({
   const pressStartedAt = useRef(0);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chargeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
   const pressOrigin = useRef({ x: 0.5, y: 0.5 });
   const burstFrame = useRef<number | null>(null);
@@ -91,6 +92,10 @@ export function ParticleSphere({
     if (chargeTimer.current) {
       clearInterval(chargeTimer.current);
       chargeTimer.current = null;
+    }
+    if (tapTimer.current) {
+      clearTimeout(tapTimer.current);
+      tapTimer.current = null;
     }
   };
 
@@ -252,7 +257,13 @@ export function ParticleSphere({
     if (allowTap && !wasTriggered && elapsed <= TAP_MAX_MS) {
       simulation.triggerWave(pressOrigin.current.x, pressOrigin.current.y);
       tapHaptic();
-      onToggle();
+      // Let the wave read on the resting sphere before the state colour changes.
+      burstStarted.current = true;
+      tapTimer.current = setTimeout(() => {
+        tapTimer.current = null;
+        burstStarted.current = false;
+        onToggle();
+      }, 700);
     }
     triggeredByHold.current = false;
   };

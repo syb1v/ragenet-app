@@ -68,7 +68,7 @@ await page.waitForTimeout(80);
 await page.mouse.up();
 await page.waitForTimeout(220);
 await page.screenshot({ path: path.join(outputDir, 'reaction.png') });
-await page.waitForTimeout(1600);
+await page.waitForTimeout(2300);
 const tapConnected = await page.getByText('Подключено', { exact: true }).isVisible();
 
 // A stationary hold charges, then disconnects after the long charge.

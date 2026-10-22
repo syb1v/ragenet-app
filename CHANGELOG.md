@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.28] - 2026-10-22
+
+### Changed
+
+- Tap now plays the resting-state wave first and only then transitions into
+  the connecting colour, so the wave no longer reads as a pale flash.
+- Increased the native particle redraw rate for a smoother gather and release.
+
 ## [0.1.27] - 2026-10-22
 
 ### Changed
