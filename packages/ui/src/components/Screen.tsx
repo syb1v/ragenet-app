@@ -2,6 +2,7 @@ import { layout } from '@ragenet/design';
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useWindowDimensions } from 'react-native';
 import { Background } from './Background';
 
 interface ScreenProps {
@@ -11,11 +12,15 @@ interface ScreenProps {
 }
 
 export function Screen({ children, fullWidth = false }: ScreenProps) {
+  const { width } = useWindowDimensions();
+  const maxWidth = width >= 900 ? 760 : layout.maxContentWidth;
   return (
     <View style={styles.root}>
       <Background />
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <View style={[styles.content, !fullWidth && styles.column]}>{children}</View>
+        <View style={[styles.content, !fullWidth && styles.column, !fullWidth && { maxWidth }]}>
+          {children}
+        </View>
       </SafeAreaView>
     </View>
   );

@@ -31,7 +31,11 @@ const STATUS_LABEL: Record<string, string> = {
   error: 'Ошибка подключения',
 };
 
-export function HomeScreen() {
+interface HomeScreenProps {
+  desktop?: boolean;
+}
+
+export function HomeScreen({ desktop = false }: HomeScreenProps) {
   const subscription = useAppStore((state) => state.subscription);
   const servers = useAppStore((state) => state.servers);
   const selectedServerId = useAppStore((state) => state.selectedServerId);
@@ -100,168 +104,174 @@ export function HomeScreen() {
 
   return (
     <Screen>
-      <Header
-        left={
-          <IconButton accessibilityLabel="Настройки" onPress={() => navigate('settings')}>
-            <PlatformIcon name="settings" size={20} color={colors.text} />
-          </IconButton>
-        }
-        right={
-          <IconButton accessibilityLabel="Добавить ключ" onPress={() => openSheet('addKey')}>
-            <PlatformIcon name="plus" size={22} color={colors.text} />
-          </IconButton>
-        }
-      />
+      {!desktop ? (
+        <Header
+          left={
+            <IconButton accessibilityLabel="Настройки" onPress={() => navigate('settings')}>
+              <PlatformIcon name="settings" size={20} color={colors.text} />
+            </IconButton>
+          }
+          right={
+            <IconButton accessibilityLabel="Добавить ключ" onPress={() => openSheet('addKey')}>
+              <PlatformIcon name="plus" size={22} color={colors.text} />
+            </IconButton>
+          }
+        />
+      ) : null}
 
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        <View style={styles.coreArea}>
-          <ParticleSphere state={vpnStatus.state} onToggle={toggleConnection} />
-          <View
-            style={[
-              styles.statusPill,
-              isConnected && styles.statusPillConnected,
-              vpnStatus.state === 'connecting' && styles.statusPillConnecting,
-              vpnStatus.state === 'error' && styles.statusPillError,
-            ]}
-          >
+        <View style={desktop ? styles.desktopRow : styles.mobileRow}>
+          <View style={[styles.coreArea, desktop && styles.desktopCore]}>
+            <ParticleSphere state={vpnStatus.state} onToggle={toggleConnection} />
             <View
               style={[
-                styles.statusDot,
-                isConnected && styles.statusDotConnected,
-                vpnStatus.state === 'connecting' && styles.statusDotConnecting,
-                vpnStatus.state === 'error' && styles.statusDotError,
-              ]}
-            />
-            <Text
-              accessibilityLiveRegion="polite"
-              style={[
-                styles.statusText,
-                isConnected && styles.statusTextConnected,
-                vpnStatus.state === 'connecting' && styles.statusTextConnecting,
+                styles.statusPill,
+                isConnected && styles.statusPillConnected,
+                vpnStatus.state === 'connecting' && styles.statusPillConnecting,
+                vpnStatus.state === 'error' && styles.statusPillError,
               ]}
             >
-              {STATUS_LABEL[vpnStatus.state] ?? 'Отключено'}
-            </Text>
-          </View>
-          {isConnected ? (
-            <Text style={styles.connectedTimer}>
-              {String(Math.floor(connectedSeconds / 60)).padStart(2, '0')}:
-              {String(connectedSeconds % 60).padStart(2, '0')}
-            </Text>
-          ) : null}
-        </View>
-
-        <View style={styles.info}>
-          <View style={styles.subscriptionRow}>
-            <View style={styles.subscriptionText}>
-              <Text style={styles.subscriptionTitle} numberOfLines={1}>
-                {subscription.meta.title ?? 'RageNet VPN'}
-              </Text>
-              <Text style={styles.updated}>Обновлено {formatUpdated(subscription.updatedAt)}</Text>
-            </View>
-            <View style={styles.subscriptionActions}>
-              <IconButton accessibilityLabel="Проверить пинг" onPress={pingServers} size={40}>
-                {isPinging ? (
-                  <PingDots color={colors.text2} />
-                ) : (
-                  <PlatformIcon name="gauge" size={19} color={colors.text2} />
-                )}
-              </IconButton>
-              <IconButton
-                accessibilityLabel="Обновить подписку"
-                onPress={refreshSubscription}
-                size={40}
+              <View
+                style={[
+                  styles.statusDot,
+                  isConnected && styles.statusDotConnected,
+                  vpnStatus.state === 'connecting' && styles.statusDotConnecting,
+                  vpnStatus.state === 'error' && styles.statusDotError,
+                ]}
+              />
+              <Text
+                accessibilityLiveRegion="polite"
+                style={[
+                  styles.statusText,
+                  isConnected && styles.statusTextConnected,
+                  vpnStatus.state === 'connecting' && styles.statusTextConnecting,
+                ]}
               >
-                {isRefreshing ? (
-                  <ActivityIndicator color={colors.text2} size="small" />
-                ) : (
-                  <PlatformIcon name="refresh" size={18} color={colors.text2} />
-                )}
-              </IconButton>
-              <View ref={moreButtonRef} collapsable={false}>
+                {STATUS_LABEL[vpnStatus.state] ?? 'Отключено'}
+              </Text>
+            </View>
+            {isConnected ? (
+              <Text style={styles.connectedTimer}>
+                {String(Math.floor(connectedSeconds / 60)).padStart(2, '0')}:
+                {String(connectedSeconds % 60).padStart(2, '0')}
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={[styles.info, desktop && styles.desktopInfo]}>
+            <View style={styles.subscriptionRow}>
+              <View style={styles.subscriptionText}>
+                <Text style={styles.subscriptionTitle} numberOfLines={1}>
+                  {subscription.meta.title ?? 'RageNet VPN'}
+                </Text>
+                <Text style={styles.updated}>
+                  Обновлено {formatUpdated(subscription.updatedAt)}
+                </Text>
+              </View>
+              <View style={styles.subscriptionActions}>
+                <IconButton accessibilityLabel="Проверить пинг" onPress={pingServers} size={40}>
+                  {isPinging ? (
+                    <PingDots color={colors.text2} />
+                  ) : (
+                    <PlatformIcon name="gauge" size={19} color={colors.text2} />
+                  )}
+                </IconButton>
                 <IconButton
-                  accessibilityLabel="Меню подписки"
-                  onPress={() => {
-                    moreButtonRef.current?.measureInWindow((x, y, width, height) => {
-                      openSubscriptionMenu({ x, y, width, height });
-                    });
-                  }}
+                  accessibilityLabel="Обновить подписку"
+                  onPress={refreshSubscription}
                   size={40}
                 >
-                  <PlatformIcon name="more" size={19} color={colors.text2} />
+                  {isRefreshing ? (
+                    <ActivityIndicator color={colors.text2} size="small" />
+                  ) : (
+                    <PlatformIcon name="refresh" size={18} color={colors.text2} />
+                  )}
                 </IconButton>
+                <View ref={moreButtonRef} collapsable={false}>
+                  <IconButton
+                    accessibilityLabel="Меню подписки"
+                    onPress={() => {
+                      moreButtonRef.current?.measureInWindow((x, y, width, height) => {
+                        openSubscriptionMenu({ x, y, width, height });
+                      });
+                    }}
+                    size={40}
+                  >
+                    <PlatformIcon name="more" size={19} color={colors.text2} />
+                  </IconButton>
+                </View>
               </View>
             </View>
+
+            <View style={styles.dataStrip}>
+              <View style={styles.dataCell}>
+                <View style={styles.dataLabelRow}>
+                  <PlatformIcon name="traffic" size={14} color={colors.text2} />
+                  <Text style={styles.dataLabel}>Трафик</Text>
+                </View>
+                <Text style={styles.dataValue}>
+                  {subscription.meta.hideTraffic ? '∞' : formatBytes(used)}
+                </Text>
+                {!subscription.meta.hideTraffic && total ? (
+                  <Text style={styles.dataSub}>из {formatBytes(total)}</Text>
+                ) : null}
+              </View>
+              <View style={styles.dataDivider} />
+              <View style={styles.dataCell}>
+                <View style={styles.dataLabelRow}>
+                  <PlatformIcon name="calendar" size={14} color={colors.text2} />
+                  <Text style={styles.dataLabel}>Действует до</Text>
+                </View>
+                <Text style={styles.dataValue}>{formatDate(subscription.meta.expiresAt)}</Text>
+                <Text style={styles.dataSub}>активна</Text>
+              </View>
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Выбрать сервер"
+              onPress={() => openSheet('servers')}
+              style={({ pressed }) => [styles.serverRow, pressed && styles.pressed]}
+            >
+              <Text style={styles.serverFlag}>{flag}</Text>
+              <View style={styles.serverText}>
+                <Text style={styles.serverName} numberOfLines={1}>
+                  {serverName}
+                </Text>
+                <Text style={styles.serverPing}>
+                  {isPinging
+                    ? 'Проверяем…'
+                    : selectedServer?.latencyMs != null
+                      ? `${selectedServer.latencyMs} мс`
+                      : '—'}
+                </Text>
+              </View>
+              <PlatformIcon name="server" size={19} color={colors.text2} />
+            </Pressable>
+
+            <View style={styles.bottomSpacer} />
+
+            <Button
+              label="Поддержка"
+              onPress={openSupport}
+              variant="secondary"
+              icon={<PlatformIcon name="support" size={20} color={colors.text2} />}
+              style={styles.supportButton}
+            />
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel="Открыть Telegram-бота"
+              onPress={openBot}
+              style={styles.botLink}
+            >
+              <PlatformIcon name="send" size={14} color={colors.text3} />
+              <Text style={styles.botLinkText}>Открыть Telegram-бота</Text>
+            </Pressable>
           </View>
-
-          <View style={styles.dataStrip}>
-            <View style={styles.dataCell}>
-              <View style={styles.dataLabelRow}>
-                <PlatformIcon name="traffic" size={14} color={colors.text2} />
-                <Text style={styles.dataLabel}>Трафик</Text>
-              </View>
-              <Text style={styles.dataValue}>
-                {subscription.meta.hideTraffic ? '∞' : formatBytes(used)}
-              </Text>
-              {!subscription.meta.hideTraffic && total ? (
-                <Text style={styles.dataSub}>из {formatBytes(total)}</Text>
-              ) : null}
-            </View>
-            <View style={styles.dataDivider} />
-            <View style={styles.dataCell}>
-              <View style={styles.dataLabelRow}>
-                <PlatformIcon name="calendar" size={14} color={colors.text2} />
-                <Text style={styles.dataLabel}>Действует до</Text>
-              </View>
-              <Text style={styles.dataValue}>{formatDate(subscription.meta.expiresAt)}</Text>
-              <Text style={styles.dataSub}>активна</Text>
-            </View>
-          </View>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Выбрать сервер"
-            onPress={() => openSheet('servers')}
-            style={({ pressed }) => [styles.serverRow, pressed && styles.pressed]}
-          >
-            <Text style={styles.serverFlag}>{flag}</Text>
-            <View style={styles.serverText}>
-              <Text style={styles.serverName} numberOfLines={1}>
-                {serverName}
-              </Text>
-              <Text style={styles.serverPing}>
-                {isPinging
-                  ? 'Проверяем…'
-                  : selectedServer?.latencyMs != null
-                    ? `${selectedServer.latencyMs} мс`
-                    : '—'}
-              </Text>
-            </View>
-            <PlatformIcon name="server" size={19} color={colors.text2} />
-          </Pressable>
-
-          <View style={styles.bottomSpacer} />
-
-          <Button
-            label="Поддержка"
-            onPress={openSupport}
-            variant="secondary"
-            icon={<PlatformIcon name="support" size={20} color={colors.text2} />}
-            style={styles.supportButton}
-          />
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel="Открыть Telegram-бота"
-            onPress={openBot}
-            style={styles.botLink}
-          >
-            <PlatformIcon name="send" size={14} color={colors.text3} />
-            <Text style={styles.botLinkText}>Открыть Telegram-бота</Text>
-          </Pressable>
         </View>
       </ScrollView>
     </Screen>
@@ -344,6 +354,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     marginTop: 4,
+  },
+  mobileRow: {
+    flexGrow: 1,
+  },
+  desktopRow: {
+    alignItems: 'stretch',
+    flexDirection: 'row',
+    flexGrow: 1,
+    gap: 28,
+  },
+  desktopCore: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    minHeight: 0,
+    paddingTop: 8,
+  },
+  desktopInfo: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    marginTop: 0,
+    maxWidth: 380,
   },
   info: {
     flexGrow: 1,

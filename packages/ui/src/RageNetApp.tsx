@@ -10,9 +10,10 @@ import { colors } from '@ragenet/design';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { Linking, Platform, StyleSheet, View } from 'react-native';
+import { Linking, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RageNetMark } from './components/Logo';
+import { DesktopShell } from './components/DesktopShell';
 import { SettingsModal } from './components/SettingsModal';
 import { SubscriptionMenu } from './components/SubscriptionMenu';
 import { Toast } from './components/Toast';
@@ -59,6 +60,8 @@ export function RageNetApp() {
     IBMPlexMono_500Medium,
   });
 
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= 900;
   const subscription = useAppStore((state) => state.subscription);
   const screen = useAppStore((state) => state.screen);
   const loadDemo = useAppStore((state) => state.loadDemo);
@@ -66,10 +69,18 @@ export function RageNetApp() {
   const addSubscription = useAppStore((state) => state.addSubscription);
   const initVpn = useAppStore((state) => state.initVpn);
   const showToast = useAppStore((state) => state.showToast);
+  const openSheet = useAppStore((state) => state.openSheet);
 
   useEffect(() => {
     initVpn();
   }, [initVpn]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    document.documentElement.style.backgroundColor = colors.bg;
+    document.body.style.backgroundColor = colors.bg;
+    document.body.style.margin = '0';
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
@@ -118,6 +129,13 @@ export function RageNetApp() {
       <View style={styles.root}>
         {!subscription ? (
           <OnboardingScreen />
+        ) : isDesktop ? (
+          <>
+            <DesktopShell onAddKey={() => openSheet('addKey')}>
+              {screen === 'logs' ? <LogsScreen /> : <HomeScreen desktop />}
+            </DesktopShell>
+            <SettingsModal visible={screen === 'settings'} onClose={() => navigate('home')} />
+          </>
         ) : (
           <>
             {screen === 'logs' ? <LogsScreen /> : <HomeScreen />}

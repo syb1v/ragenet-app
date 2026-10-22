@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-22
+
+### Changed
+
+- Desktop now opens as a wide native-style workspace instead of a phone-sized
+  web column: sidebar navigation, wider connection canvas and installers only
+  in GitHub Releases.
+- Desktop and web root backgrounds fill the window; the support row remains
+  pinned to the bottom on mobile.
+
 ## [0.2.0] - 2026-10-22
 
 ### Added
