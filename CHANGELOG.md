@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-10-22
+
+### Fixed
+
+- Remnawave now receives one stable HWID per installation instead of a new
+  random UUID on every launch.
+- Android derives the HWID from the signing-scoped `ANDROID_ID`; iOS stores a
+  generated UUID in the Keychain so it survives app deletion and reinstall.
+- Latency is now measured with a fresh HTTPS request to
+  `https://www.gstatic.com/generate_204` through the active tunnel, including
+  DNS, TCP and TLS. Probing the VPN entry port from inside the tunnel made the
+  proxy connect to itself and produced fake 3-20 ms values.
+- The latency probe domain is explicitly routed through the selected proxy,
+  including in full custom Xray configs.
+
 ## [0.3.3] - 2026-10-22
 
 ### Changed

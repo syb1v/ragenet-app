@@ -1,6 +1,8 @@
 import ExpoModulesCore
 import Network
 import NetworkExtension
+import Security
+import UIKit
 
 public final class RageNetVpnModule: Module {
   private var manager: NETunnelProviderManager?
@@ -49,6 +51,89 @@ public final class RageNetVpnModule: Module {
         manager = try? await loadManager()
       }
       return statusPayload()
+    }
+
+    /// Keychain items survive app deletion/reinstall on iOS, unlike
+    /// UserDefaults. Keep one generated UUID for the lifetime of the device.
+    Function("getStableDeviceId") { () -> String in
+      let service = "net.ragenet.vpn.hwid"
+      let account = "device"
+      let lookup: [String: Any] = [
+        kSecClass as String: kSecClassGenericPassword,
+        kSecAttrService as String: service,
+        kSecAttrAccount as String: account,
+        kSecReturnData as String: true,
+        kSecMatchLimit as String: kSecMatchLimitOne,
+      ]
+      var item: CFTypeRef?
+      if SecItemCopyMatching(lookup as CFDictionary, &item) == errSecSuccess,
+         let data = item as? Data,
+         let value = String(data: data, encoding: .utf8),
+         !value.isEmpty {
+        return value.uppercased()
+      }
+
+      let generated = UUID().uuidString.uppercased()
+      let insert: [String: Any] = [
+        kSecClass as String: kSecClassGenericPassword,
+        kSecAttrService as String: service,
+        kSecAttrAccount as String: account,
+        kSecValueData as String: Data(generated.utf8),
+        kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+      ]
+      if SecItemAdd(insert as CFDictionary, nil) == errSecSuccess {
+        return generated
+      }
+
+      // Last-resort fallback if the Keychain is unavailable.
+      if let vendorId = UIDevice.current.identifierForVendor?.uuidString {
+        return vendorId.uppercased()
+      }
+      return generated
+    }
+
+    /// Measure the real end-to-end HTTPS round trip through the active tunnel.
+    /// A new ephemeral URLSession forces a fresh TCP/TLS handshake instead of
+    /// reusing a keep-alive connection (which would produce unrealistically
+    /// small values).
+    AsyncFunction("measureHttpLatency") { (urlString: String, timeoutMs: Int) async -> Int? in
+      guard let url = URL(string: urlString) else { return nil }
+      let timeout = Double(min(max(timeoutMs, 500), 15_000)) / 1000
+      let configuration = URLSessionConfiguration.ephemeral
+      configuration.urlCache = nil
+      configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+      configuration.timeoutIntervalForRequest = timeout
+      configuration.timeoutIntervalForResource = timeout
+      configuration.waitsForConnectivity = false
+      configuration.httpMaximumConnectionsPerHost = 1
+      let session = URLSession(configuration: configuration)
+
+      var request = URLRequest(url: url)
+      request.httpMethod = "GET"
+      request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+      request.timeoutInterval = timeout
+      request.setValue("*/*", forHTTPHeaderField: "Accept")
+      request.setValue("no-cache, no-store, max-age=0", forHTTPHeaderField: "Cache-Control")
+      request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+      request.setValue("close", forHTTPHeaderField: "Connection")
+      request.setValue("RageNet/latency", forHTTPHeaderField: "User-Agent")
+
+      let started = DispatchTime.now().uptimeNanoseconds
+      do {
+        let (_, response) = try await session.data(for: request)
+        session.finishTasksAndInvalidate()
+        guard
+          let http = response as? HTTPURLResponse,
+          (200...399).contains(http.statusCode)
+        else {
+          return nil
+        }
+        let elapsed = Int((DispatchTime.now().uptimeNanoseconds - started) / 1_000_000)
+        return elapsed
+      } catch {
+        session.invalidateAndCancel()
+        return nil
+      }
     }
 
     AsyncFunction("measureLatency") { (host: String, port: Int, timeoutMs: Int) async -> Int? in

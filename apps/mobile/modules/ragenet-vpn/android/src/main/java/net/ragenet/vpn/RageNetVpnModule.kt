@@ -4,12 +4,17 @@ import android.content.Intent
 import android.net.VpnService
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import androidx.core.content.ContextCompat
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
+import java.net.HttpURLConnection
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.net.URL
+import java.util.Locale
+import java.util.UUID
 
 class RageNetVpnModule : Module() {
   private var removeStatusListener: (() -> Unit)? = null
@@ -67,6 +72,65 @@ class RageNetVpnModule : Module() {
         "since" to status.since,
         "error" to status.error,
       )
+    }
+
+    /**
+     * ANDROID_ID is scoped to the device, user and signing key and survives
+     * uninstall/reinstall. Hashing it keeps the raw system identifier private
+     * while giving Remnawave one stable HWID for this installation.
+     */
+    Function("getStableDeviceId") {
+      val context = appContext.reactContext
+        ?: return@Function UUID.randomUUID().toString().uppercase(Locale.US)
+      val androidId = try {
+        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+      } catch (_: Exception) {
+        null
+      }
+
+      if (!androidId.isNullOrBlank()) {
+        val seed = "ragenet:${context.packageName}:$androidId"
+        UUID.nameUUIDFromBytes(seed.toByteArray(Charsets.UTF_8))
+          .toString()
+          .uppercase(Locale.US)
+      } else {
+        val preferences = context.getSharedPreferences("ragenet_device", 0)
+        preferences.getString("hwid", null)
+          ?: UUID.randomUUID().toString().uppercase(Locale.US).also { value ->
+            preferences.edit().putString("hwid", value).apply()
+          }
+      }
+    }
+
+    /**
+     * Fresh, uncached HTTPS request. A new connection is forced with
+     * `Connection: close`, so the result includes DNS/TCP/TLS and the real
+     * proxy round-trip instead of a reused keep-alive socket.
+     */
+    AsyncFunction("measureHttpLatency") { url: String, timeoutMs: Int ->
+      var connection: HttpURLConnection? = null
+      try {
+        val timeout = timeoutMs.coerceIn(500, 15_000)
+        val started = System.nanoTime()
+        connection = URL(url).openConnection() as HttpURLConnection
+        connection.instanceFollowRedirects = false
+        connection.connectTimeout = timeout
+        connection.readTimeout = timeout
+        connection.useCaches = false
+        connection.requestMethod = "GET"
+        connection.setRequestProperty("Accept", "*/*")
+        connection.setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0")
+        connection.setRequestProperty("Pragma", "no-cache")
+        connection.setRequestProperty("Connection", "close")
+        connection.setRequestProperty("User-Agent", "RageNet/latency")
+        val responseCode = connection.responseCode
+        val elapsed = ((System.nanoTime() - started) / 1_000_000).toInt()
+        if (responseCode in 200..399) elapsed else null
+      } catch (_: Exception) {
+        null
+      } finally {
+        connection?.disconnect()
+      }
     }
 
     AsyncFunction("measureLatency") { host: String, port: Int, timeoutMs: Int ->

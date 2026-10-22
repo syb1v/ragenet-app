@@ -104,12 +104,22 @@ const deviceModel = (): string => {
   );
 };
 
+function stableDeviceHwid(): string {
+  try {
+    const nativeId = createVpnBridge().getStableDeviceId?.();
+    if (nativeId) return nativeId;
+  } catch {
+    // Native module is unavailable (web preview, SSR, Expo Go).
+  }
+  return generateHwid();
+}
+
 export const DEVICE = {
-  hwid: generateHwid(),
+  hwid: stableDeviceHwid(),
   os: platformName(),
   osVersion: Platform.Version?.toString() ?? 'unknown',
   model: deviceModel(),
-  appVersion: Constants.expoConfig?.version ?? '0.3.3',
+  appVersion: Constants.expoConfig?.version ?? '0.3.4',
 };
 
 let vpnBridge: VpnBridge | null = null;
@@ -143,37 +153,69 @@ async function waitForVpnState(
   }
 }
 
+const LATENCY_PROBE_URL = 'https://www.gstatic.com/generate_204';
+const LATENCY_TIMEOUT_MS = 4000;
+
+function latencyProbeUrl(): string {
+  // Defeat caches and proxy response caches; the request itself must still
+  // traverse the active tunnel.
+  return `${LATENCY_PROBE_URL}?ragenet=${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 async function probeLatency(
   bridge: VpnBridge,
-  server: ServerNode,
-  timeoutMs = 1400,
+  timeoutMs = LATENCY_TIMEOUT_MS,
 ): Promise<number | null> {
-  const host = server.host;
-  if (!host) return null;
-  const portSuffix = server.port === 443 ? '' : `:${server.port}`;
-  const hostPart = host.includes(':') ? `[${host}]` : host;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
-  try {
-    await fetch(`https://${hostPart}${portSuffix}/`, {
-      method: 'GET',
-      cache: 'no-store',
-      signal: controller.signal,
-    });
-    return Math.max(
-      0,
-      Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt),
-    );
-  } catch {
-    // Not every VPN endpoint speaks HTTPS on its public port. Use a real
-    // TCP handshake as the fallback instead of inventing a number.
-  } finally {
-    clearTimeout(timeout);
+  const url = latencyProbeUrl();
+
+  // Native HTTP creates a fresh connection and includes DNS/TCP/TLS plus the
+  // real proxy round-trip. Measuring the VPN entry port from inside the tunnel
+  // measures the proxy connecting to itself and produces fake 3-20 ms values.
+  if (bridge.measureHttpLatency) {
+    try {
+      const measured = await bridge.measureHttpLatency(url, timeoutMs);
+      if (measured != null) return measured;
+    } catch {
+      // Fall through to the TCP probe below.
+    }
+  } else {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        cache: 'no-store',
+        mode: Platform.OS === 'web' ? 'no-cors' : 'cors',
+        headers: {
+          Accept: '*/*',
+          'Cache-Control': 'no-cache, no-store, max-age=0',
+          Pragma: 'no-cache',
+        },
+        signal: controller.signal,
+      });
+      if (
+        response.ok ||
+        response.type === 'opaque' ||
+        response.status === 0 ||
+        (response.status >= 200 && response.status < 400)
+      ) {
+        return Math.max(
+          0,
+          Math.round(
+            (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt,
+          ),
+        );
+      }
+    } catch {
+      // Fall back to a real TCP handshake through the same network path.
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   try {
-    return (await bridge.measureLatency?.(host, server.port, timeoutMs)) ?? null;
+    return (await bridge.measureLatency?.('www.gstatic.com', 443, timeoutMs)) ?? null;
   } catch {
     return null;
   }
@@ -197,6 +239,7 @@ async function pingTargets(
 ): Promise<void> {
   if (targets.length === 0 || get().isPinging || get().isSwitching) return;
   const bridge = getVpnBridge();
+  const throughTunnel = get().vpnStatus.state === 'connected';
   const targetIds = new Set(targets.map((server) => server.id));
 
   set({
@@ -209,7 +252,7 @@ async function pingTargets(
   try {
     const measured = await Promise.all(
       targets.map(async (server) => {
-        const latency = await probeLatency(bridge, server);
+        const latency = await probeLatency(bridge);
         if (latency != null) {
           set((state) => ({
             servers: state.servers.map((entry) =>
@@ -237,7 +280,11 @@ async function pingTargets(
     const current = get().servers.find((entry) => entry.id === server.id);
     return current?.latencyMs != null;
   }).length;
-  get().addLog(`Пинг завершён · ${answered}/${targets.length} локаций`);
+  get().addLog(
+    `Пинг завершён · ${answered}/${targets.length} локаций · ${
+      throughTunnel ? 'через туннель' : 'напрямую'
+    }`,
+  );
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -435,6 +482,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   initVpn: () => {
     if (vpnUnsubscribe) return;
     const bridge = getVpnBridge();
+    try {
+      const stableId = bridge.getStableDeviceId?.();
+      if (stableId) DEVICE.hwid = stableId;
+    } catch {
+      // Keep the fallback identifier when the native module is unavailable.
+    }
     vpnUnsubscribe = bridge.subscribe((status) => {
       if (!suppressVpnStatus) set({ vpnStatus: status });
     });

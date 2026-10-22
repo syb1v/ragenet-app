@@ -33,6 +33,10 @@ export interface VpnBridge {
   stop(): Promise<void>;
   getStatus(): Promise<VpnStatus>;
   subscribe(listener: VpnEventListener): () => void;
+  /** Stable per-device identifier used as the Remnawave `x-hwid` header. */
+  getStableDeviceId?(): string;
+  /** Real end-to-end HTTPS latency through the current network/tunnel. */
+  measureHttpLatency?(url: string, timeoutMs?: number): Promise<number | null>;
   measureLatency?(host: string, port: number, timeoutMs?: number): Promise<number | null>;
   getLogs?(): Promise<VpnLogEntry[]>;
   clearLogs?(): Promise<void>;

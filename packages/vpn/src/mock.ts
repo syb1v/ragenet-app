@@ -1,4 +1,4 @@
-import type { VpnStatus } from '@ragenet/core';
+import { generateHwid, type VpnStatus } from '@ragenet/core';
 import type {
   StartVpnOptions,
   VpnBridge,
@@ -61,6 +61,22 @@ export class MockVpnBridge implements VpnBridge {
     this.listeners.add(listener);
     listener(this.status);
     return () => this.listeners.delete(listener);
+  }
+
+  getStableDeviceId(): string {
+    const storageKey = 'ragenet.device.hwid';
+    try {
+      if (typeof globalThis.localStorage !== 'undefined') {
+        const existing = globalThis.localStorage.getItem(storageKey);
+        if (existing) return existing;
+        const generated = generateHwid();
+        globalThis.localStorage.setItem(storageKey, generated);
+        return generated;
+      }
+    } catch {
+      // Storage can be unavailable in private browser contexts.
+    }
+    return generateHwid();
   }
 
   async measureLatency(): Promise<number | null> {

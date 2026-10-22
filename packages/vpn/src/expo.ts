@@ -22,6 +22,8 @@ interface NativeVpnModule {
     event: 'onVpnLog',
     listener: (event: { time: number; level: string; message: string }) => void,
   ): { remove(): void };
+  getStableDeviceId(): string;
+  measureHttpLatency(url: string, timeoutMs: number): Promise<number | null>;
   measureLatency(host: string, port: number, timeoutMs: number): Promise<number | null>;
   getLogs(): Promise<{ time: number; level: string; message: string }[]>;
   clearLogs(): Promise<boolean>;
@@ -77,7 +79,9 @@ export function createVpnBridge(): VpnBridge {
       const subscription = native.addListener('onVpnStatus', (event) => listener(toStatus(event)));
       return () => subscription.remove();
     },
-    measureLatency: (host, port, timeoutMs = 1600) => native.measureLatency(host, port, timeoutMs),
+    getStableDeviceId: () => native.getStableDeviceId(),
+    measureHttpLatency: (url, timeoutMs = 4000) => native.measureHttpLatency(url, timeoutMs),
+    measureLatency: (host, port, timeoutMs = 4000) => native.measureLatency(host, port, timeoutMs),
     getLogs: () =>
       native.getLogs().then((entries) =>
         entries.map((entry) => ({

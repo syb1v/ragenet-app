@@ -20,6 +20,9 @@ export interface XrayConfig extends JsonObject {
 
 const DEFAULT_DNS = ['1.1.1.1', '8.8.8.8'];
 
+/** Must stay in sync with the latency probe in the UI store. */
+export const LATENCY_PROBE_DOMAIN = 'gstatic.com';
+
 function isObject(value: unknown): value is JsonObject {
   return value != null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -116,6 +119,11 @@ export function buildXrayConfig(
   const routingMode = options.routingMode ?? 'global';
   const rules: JsonObject[] = [
     { type: 'field', inboundTag: ['api'], outboundTag: 'api' },
+    {
+      type: 'field',
+      domain: [`domain:${LATENCY_PROBE_DOMAIN}`],
+      outboundTag: String(proxy.tag),
+    },
     ...directRules(routingMode),
     { type: 'field', inboundTag: ['tun'], port: 53, outboundTag: String(proxy.tag) },
     { type: 'field', network: 'tcp,udp', outboundTag: String(proxy.tag) },
@@ -171,6 +179,10 @@ export function sanitizeFullConfig(input: JsonObject, options: BuildXrayConfigOp
   for (const inbound of inbounds) {
     const protocol = String(inbound.protocol ?? '').toLowerCase();
     if (protocol === 'tun') {
+      const sniffing = isObject(inbound.sniffing) ? inbound.sniffing : {};
+      const destOverride = Array.isArray(sniffing.destOverride)
+        ? sniffing.destOverride
+        : ['http', 'tls', 'quic'];
       safeInbounds.push({
         ...inbound,
         tag: inbound.tag ?? 'tun',
@@ -180,10 +192,12 @@ export function sanitizeFullConfig(input: JsonObject, options: BuildXrayConfigOp
             (isObject(inbound.settings) && inbound.settings.name) || options.tunName || 'ragenet0',
           mtu: (isObject(inbound.settings) && inbound.settings.mtu) || options.tunMtu || 1500,
         },
-        sniffing: inbound.sniffing ?? {
+        // The generated probe rule matches the gstatic domain, so TUN
+        // sniffing must stay enabled even in a custom config.
+        sniffing: {
+          ...sniffing,
           enabled: true,
-          destOverride: ['http', 'tls', 'quic'],
-          routeOnly: false,
+          destOverride,
         },
       });
       continue;
@@ -222,6 +236,15 @@ export function sanitizeFullConfig(input: JsonObject, options: BuildXrayConfigOp
   // unhandled. Explicit user rules still win because this is prepended only
   // when no TUN rule exists.
   const proxyTag = proxyOutboundTag(config);
+  if (proxyTag) {
+    // The latency probe must follow the proxy path even in a custom config
+    // whose first-match rules would send Google traffic direct.
+    rules.unshift({
+      type: 'field',
+      domain: [`domain:${LATENCY_PROBE_DOMAIN}`],
+      outboundTag: proxyTag,
+    });
+  }
   if (
     proxyTag &&
     !rules.some((rule) => Array.isArray(rule.inboundTag) && rule.inboundTag.includes('tun'))
