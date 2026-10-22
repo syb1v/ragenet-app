@@ -138,8 +138,6 @@ jobs:
           mkdir -p artifacts
           cp "apps/mobile/android/app/build/outputs/apk/${BUILD_TYPE}/app-${BUILD_TYPE}.apk" \
             "artifacts/RageNet-${APP_VERSION}-android-arm64-${BUILD_TYPE}.apk"
-          cd artifacts
-          sha256sum *.apk > SHA256SUMS-android.txt
 
       - name: Upload APK
         uses: actions/upload-artifact@v7

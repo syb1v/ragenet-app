@@ -122,7 +122,6 @@ jobs:
           FILE="RageNet-${APP_VERSION}-ios-${CONFIGURATION}-unsigned.ipa"
           zip -qry "$FILE" Payload
           rm -rf Payload
-          sha256sum "$FILE" > "SHA256SUMS-ios-${CONFIGURATION}.txt"
 
       - name: Upload IPA
         uses: actions/upload-artifact@v7

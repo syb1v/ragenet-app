@@ -88,6 +88,11 @@ jobs:
           PRERELEASE: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           mkdir -p release-assets
-          find apps/desktop/src-tauri/target -path '*/release/bundle/*' -type f -exec cp {} release-assets/ \;
+          # Publish installers only. Tauri bundles contain dozens of runtime
+          # libraries and helper files; copying the whole bundle turns a release
+          # into an unreadable dump of internal files.
+          find apps/desktop/src-tauri/target -path '*/release/bundle/*' -type f \
+            \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) \
+            -exec cp {} release-assets/ \;
           chmod +x scripts/publish-release.sh
           scripts/publish-release.sh "app-v${APP_VERSION}" "${APP_VERSION}" release-assets
