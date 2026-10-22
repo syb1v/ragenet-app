@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-10-22
+
+### Changed
+
+- Dragging across the sphere no longer starts the hold/explosion; only a
+  stationary hold charges it.
+- Dragging emits travelling liquid ripples in addition to local particle
+  repulsion.
+- Leaving the sphere clears the pointer impression immediately.
+- The hold vibration now starts slowly and accelerates non-linearly near the
+  release.
+- Larger, fewer sphere particles and a visible 1.3× burst overshoot.
+- Layered haptic impacts for a deeper hold pulse.
+
 ## [0.3.2] - 2026-10-22
 
 ### Changed

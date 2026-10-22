@@ -57,10 +57,7 @@ export class ParticleSphereSimulation {
   private reactionTime = 0;
   private reactionStrength = 0;
   private reactionActive = false;
-  private waveAge = 0;
-  private waveX = 0.5;
-  private waveY = 0.5;
-  private waveStrength = 0;
+  private waves: { x: number; y: number; age: number; strength: number }[] = [];
   private gatherLevel = 0;
   private burstScale = 1;
   private vibrationLevel = 0;
@@ -209,10 +206,20 @@ export class ParticleSphereSimulation {
 
   /** Start a liquid ripple from a normalized point on the sphere. */
   triggerWave(x: number, y: number, strength = 1): void {
-    this.waveX = clamp(x, 0, 1);
-    this.waveY = clamp(y, 0, 1);
-    this.waveAge = 0;
-    this.waveStrength = clamp(strength, 0, 1.4);
+    this.waves.push({
+      x: clamp(x, 0, 1),
+      y: clamp(y, 0, 1),
+      age: 0,
+      strength: clamp(strength, 0, 1.4),
+    });
+    if (this.waves.length > 5) this.waves.shift();
+  }
+
+  /** Stop the old tap impression immediately when a finger leaves the surface. */
+  clearPointer(): void {
+    this.pointerTargetStrength = 0;
+    this.pointerStrength = 0;
+    this.pointerEnergy = 0;
   }
 
   setMode(mode: ParticleMode): void {
@@ -222,12 +229,8 @@ export class ParticleSphereSimulation {
   update(dt: number): void {
     const step = clamp(dt, 0, 0.05);
     this.time += step;
-    if (this.waveStrength > 0) {
-      this.waveAge += step;
-      if (this.waveAge >= 2.2) {
-        this.waveStrength = 0;
-      }
-    }
+    for (const wave of this.waves) wave.age += step;
+    this.waves = this.waves.filter((wave) => wave.age < 2.2);
     this.pointerStrength +=
       (this.pointerTargetStrength - this.pointerStrength) * Math.min(1, step * 14);
     this.pointerEnergy *= Math.exp(-5 * step);
@@ -350,12 +353,13 @@ export class ParticleSphereSimulation {
 
   /** Current wave data for a subtle one-front renderer overlay. */
   getWave(): { x: number; y: number; progress: number; strength: number } | null {
-    if (this.waveStrength <= 0.001) return null;
+    const wave = this.waves[this.waves.length - 1];
+    if (!wave) return null;
     return {
-      x: this.waveX,
-      y: this.waveY,
-      progress: clamp(this.waveAge / 2.2, 0, 1),
-      strength: this.waveStrength,
+      x: wave.x,
+      y: wave.y,
+      progress: clamp(wave.age / 2.2, 0, 1),
+      strength: wave.strength,
     };
   }
 
@@ -420,27 +424,28 @@ export class ParticleSphereSimulation {
       }
 
       let waveBoost = 0;
-      if (this.waveStrength > 0) {
-        const waveOriginX = center + (this.waveX * 2 - 1) * radius;
-        const waveOriginY = center + (this.waveY * 2 - 1) * radius;
+      for (const wave of this.waves) {
+        const waveOriginX = center + (wave.x * 2 - 1) * radius;
+        const waveOriginY = center + (wave.y * 2 - 1) * radius;
         const dx = screenX - waveOriginX;
         const dy = screenY - waveOriginY;
         const distance = Math.max(0.001, Math.hypot(dx, dy));
-        const progress = clamp(this.waveAge / 2.2, 0, 1);
+        const progress = clamp(wave.age / 2.2, 0, 1);
         const front = progress * size * 1.22;
-        const thickness = size * 0.12 + this.waveAge * size * 0.012;
+        const thickness = size * 0.12 + wave.age * size * 0.012;
         const angle = Math.atan2(dy, dx);
         const organicFront =
           1 +
           Math.sin(angle * 3.1 + this.time * 0.8) * 0.035 +
           Math.sin(angle * 6.7 - this.time * 0.6) * 0.018;
         const gaussian = Math.exp(-(((distance - front * organicFront) / thickness) ** 2));
-        const envelope = Math.min(1, this.waveAge / 0.28) * (1 - progress) ** 1.5;
-        const displacement = gaussian * envelope * size * 0.1 * this.waveStrength;
-        waveBoost = gaussian * envelope * this.waveStrength;
+        const envelope = Math.min(1, wave.age / 0.28) * (1 - progress) ** 1.5;
+        const displacement = gaussian * envelope * size * 0.075 * wave.strength;
+        waveBoost += gaussian * envelope * wave.strength;
         screenX += (dx / distance) * displacement;
         screenY += (dy / distance) * displacement;
       }
+      waveBoost = Math.min(1.2, waveBoost);
 
       const depth = clamp((z + 1) / 2, 0, 1);
 
@@ -458,7 +463,7 @@ export class ParticleSphereSimulation {
       if (this.vibrationLevel > 0.001) {
         const tremble = this.vibrationLevel * 5.2;
         const phase = this.phase[index];
-        const speed = 0.55 + this.vibrationLevel * 0.95;
+        const speed = 0.32 + this.vibrationLevel * 1.15;
         const tremorX =
           Math.sin(this.time * (10 + phase * 4) * speed + phase * 19) +
           Math.sin(this.time * (17 + phase * 3) * speed + phase * 7) * 0.35;

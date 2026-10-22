@@ -47,6 +47,10 @@ export function ParticleSphere({
   const pressing = useRef(false);
   const triggeredByHold = useRef(false);
   const pressStartedAt = useRef(0);
+  const stationaryStartedAt = useRef(0);
+  const stationaryAnchor = useRef({ x: 0, y: 0 });
+  const hasMoved = useRef(false);
+  const lastWaveAt = useRef(0);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chargeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -149,7 +153,7 @@ export function ParticleSphere({
         if (!released) {
           released = true;
           stopHapticRamp();
-          simulation.setPointer(null, null);
+          simulation.clearPointer();
           simulation.setVibration(0);
           simulation.setGather(0);
           simulation.setBurstScale(1);
@@ -191,6 +195,15 @@ export function ParticleSphere({
     burstFrame.current = requestAnimationFrame(step);
   };
 
+  const armHold = () => {
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+    holdTimer.current = setTimeout(() => {
+      if (!pressing.current || triggeredByHold.current) return;
+      triggeredByHold.current = true;
+      runBurst();
+    }, HOLD_MS);
+  };
+
   const beginPress = (event: GestureResponderEvent) => {
     if (burstStarted.current || state === 'connecting' || state === 'disconnecting') return;
     const { locationX, locationY } = event.nativeEvent;
@@ -200,6 +213,10 @@ export function ParticleSphere({
     pressing.current = true;
     triggeredByHold.current = false;
     pressStartedAt.current = Date.now();
+    stationaryStartedAt.current = Date.now();
+    stationaryAnchor.current = { x: locationX, y: locationY };
+    hasMoved.current = false;
+    lastWaveAt.current = 0;
     lastPoint.current = null;
     burstStarted.current = false;
     simulation.setGather(0);
@@ -214,20 +231,16 @@ export function ParticleSphere({
     startHapticRamp(HOLD_MS, 260);
     chargeTimer.current = setInterval(() => {
       if (!pressing.current) return;
-      const progress = Math.min(1, (Date.now() - pressStartedAt.current) / HOLD_MS);
+      const progress = Math.min(1, (Date.now() - stationaryStartedAt.current) / HOLD_MS);
       simulation.setCharge(progress);
-      simulation.setVibration(0.4 + 0.6 * progress ** 1.55);
+      simulation.setVibration(0.1 + 0.9 * progress ** 2.25);
       if (progress >= 1 || progress - reportedCharge.current >= 0.02) {
         reportedCharge.current = progress;
         onChargeProgress?.(progress);
       }
     }, 32);
 
-    holdTimer.current = setTimeout(() => {
-      if (!pressing.current || triggeredByHold.current) return;
-      triggeredByHold.current = true;
-      runBurst();
-    }, HOLD_MS);
+    armHold();
   };
 
   const updatePointer = (event: GestureResponderEvent) => {
@@ -237,12 +250,13 @@ export function ParticleSphere({
       pressing.current = false;
       triggeredByHold.current = false;
       resetCharge();
-      simulation.setPointer(null, null);
+      simulation.clearPointer();
       lastPoint.current = null;
+      hasMoved.current = true;
       return;
     }
 
-    if (!isInside(locationX, locationY)) return;
+    if (!pressing.current || !isInside(locationX, locationY)) return;
 
     const x = locationX / size;
     const y = locationY / size;
@@ -255,6 +269,29 @@ export function ParticleSphere({
       simulation.addSpin(dx, dy);
       simulation.addPointerEnergy(Math.min(0.35, pixelDistance / 45));
       if (pixelDistance > 2) dragHaptic(Math.min(1, pixelDistance / 14));
+
+      const anchorDistance = Math.hypot(
+        locationX - stationaryAnchor.current.x,
+        locationY - stationaryAnchor.current.y,
+      );
+      if (anchorDistance > 7) {
+        hasMoved.current = true;
+        stationaryAnchor.current = { x: locationX, y: locationY };
+        stationaryStartedAt.current = Date.now();
+        simulation.setCharge(0);
+        simulation.setVibration(0);
+        reportedCharge.current = 0;
+        onChargeProgress?.(0);
+        stopHapticRamp();
+        startHapticRamp(HOLD_MS, 260);
+        armHold();
+      }
+
+      const now = Date.now();
+      if (pixelDistance > 10 && now - lastWaveAt.current > 170) {
+        lastWaveAt.current = now;
+        simulation.triggerWave(x, y, 0.8);
+      }
     }
     lastPoint.current = { x, y };
   };
@@ -267,14 +304,14 @@ export function ParticleSphere({
     pressing.current = false;
     if (wasTriggered) {
       clearTimers();
-      simulation.setPointer(null, null);
+      simulation.clearPointer();
       return;
     }
     resetCharge();
-    simulation.setPointer(null, null);
+    simulation.clearPointer();
     lastPoint.current = null;
 
-    if (allowTap && !wasTriggered && elapsed <= TAP_MAX_MS) {
+    if (allowTap && !wasTriggered && !hasMoved.current && elapsed <= TAP_MAX_MS) {
       simulation.triggerWave(pressOrigin.current.x, pressOrigin.current.y);
       tapHaptic();
       // Let the wave read on the resting sphere before the state colour changes.
