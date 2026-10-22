@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-10-22
+
+### Changed
+
+- The charge tremor is now generated independently per particle, with its own
+  gain, onset, frequency and direction instead of a shared sphere-wide shake.
+- The current location keeps the real HTTPS latency through the active proxy.
+- Every other location is measured by a TCP handshake to its actual entry
+  node, so unreachable or placeholder locations stay empty instead of showing
+  the selected location's latency.
+
 ## [0.3.4] - 2026-10-22
 
 ### Fixed

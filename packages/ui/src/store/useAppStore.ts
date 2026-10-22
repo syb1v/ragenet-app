@@ -119,7 +119,7 @@ export const DEVICE = {
   os: platformName(),
   osVersion: Platform.Version?.toString() ?? 'unknown',
   model: deviceModel(),
-  appVersion: Constants.expoConfig?.version ?? '0.3.4',
+  appVersion: Constants.expoConfig?.version ?? '0.3.5',
 };
 
 let vpnBridge: VpnBridge | null = null;
@@ -162,7 +162,7 @@ function latencyProbeUrl(): string {
   return `${LATENCY_PROBE_URL}?ragenet=${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-async function probeLatency(
+async function probeTunnelLatency(
   bridge: VpnBridge,
   timeoutMs = LATENCY_TIMEOUT_MS,
 ): Promise<number | null> {
@@ -221,6 +221,24 @@ async function probeLatency(
   }
 }
 
+/**
+ * Per-location probe. A TCP handshake reaches the actual entry node, so an
+ * unreachable or placeholder location stays empty instead of inheriting the
+ * selected server's internet latency.
+ */
+async function probeEntryLatency(
+  bridge: VpnBridge,
+  server: ServerNode,
+  timeoutMs = LATENCY_TIMEOUT_MS,
+): Promise<number | null> {
+  if (!server.host) return null;
+  try {
+    return (await bridge.measureLatency?.(server.host, server.port, timeoutMs)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function initialLogs(): LogEntry[] {
   return [
     {
@@ -240,6 +258,7 @@ async function pingTargets(
   if (targets.length === 0 || get().isPinging || get().isSwitching) return;
   const bridge = getVpnBridge();
   const throughTunnel = get().vpnStatus.state === 'connected';
+  const selectedId = get().selectedServerId ?? get().servers[0]?.id ?? null;
   const targetIds = new Set(targets.map((server) => server.id));
 
   set({
@@ -252,7 +271,10 @@ async function pingTargets(
   try {
     const measured = await Promise.all(
       targets.map(async (server) => {
-        const latency = await probeLatency(bridge);
+        const latency =
+          throughTunnel && server.id === selectedId
+            ? await probeTunnelLatency(bridge)
+            : await probeEntryLatency(bridge, server);
         if (latency != null) {
           set((state) => ({
             servers: state.servers.map((entry) =>

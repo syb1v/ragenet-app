@@ -37,6 +37,10 @@ export class ParticleSphereSimulation {
   private readonly position: Float32Array;
   private readonly velocity: Float32Array;
   private readonly phase: Float32Array;
+  private readonly tremorScale: Float32Array;
+  private readonly tremorSpeed: Float32Array;
+  private readonly tremorOnset: Float32Array;
+  private readonly tremorPhase: Float32Array;
   private readonly pointSize: Float32Array;
   private readonly projected: Float32Array;
 
@@ -79,6 +83,10 @@ export class ParticleSphereSimulation {
     this.position = new Float32Array(this.count * 3);
     this.velocity = new Float32Array(this.count * 3);
     this.phase = new Float32Array(this.count);
+    this.tremorScale = new Float32Array(this.count);
+    this.tremorSpeed = new Float32Array(this.count);
+    this.tremorOnset = new Float32Array(this.count);
+    this.tremorPhase = new Float32Array(this.count);
     this.pointSize = new Float32Array(this.count);
     this.projected = new Float32Array(this.count * 4);
 
@@ -126,6 +134,13 @@ export class ParticleSphereSimulation {
       this.velocity[offset + 2] = (random() - 0.5) * 0.02;
 
       this.phase[index] = random() * TAU;
+      // Each dot has its own gain, rate, start threshold and direction. The
+      // charge tremor therefore reads as hundreds of independent particles,
+      // not one shared sphere-wide shake.
+      this.tremorScale[index] = 0.45 + random() * 0.95;
+      this.tremorSpeed[index] = 0.68 + random() * 0.72;
+      this.tremorOnset[index] = random() * 0.3;
+      this.tremorPhase[index] = random() * TAU;
       this.pointSize[index] = 1.0 + random() * 0.7;
     }
   }
@@ -458,18 +473,26 @@ export class ParticleSphereSimulation {
         screenY += (dy / distance) * force;
       }
 
-      // Charge feedback is a deliberate high-frequency tremble. It is applied
-      // in screen space so it never destabilises the spring simulation.
-      if (this.vibrationLevel > 0.001) {
-        const tremble = this.vibrationLevel * 5.2;
+      // Charge feedback is a deliberate high-frequency tremble. Every dot has
+      // an independent gain, onset, rate and phase, and the tremor starts
+      // locally per particle as the charge rises. It is applied in screen
+      // space so it never destabilises the spring simulation.
+      const onset = this.tremorOnset[index];
+      const localVibration =
+        this.vibrationLevel <= onset
+          ? 0
+          : clamp((this.vibrationLevel - onset) / Math.max(0.18, 1 - onset), 0, 1);
+      if (localVibration > 0.001) {
         const phase = this.phase[index];
-        const speed = 0.32 + this.vibrationLevel * 1.15;
+        const ownPhase = this.tremorPhase[index];
+        const speed = (0.32 + localVibration * 1.15) * this.tremorSpeed[index];
+        const tremble = localVibration * 5.8 * this.tremorScale[index] * (0.78 + depth * 0.34);
         const tremorX =
-          Math.sin(this.time * (10 + phase * 4) * speed + phase * 19) +
-          Math.sin(this.time * (17 + phase * 3) * speed + phase * 7) * 0.35;
+          Math.sin(this.time * (10 + phase * 4) * speed + phase * 19 + ownPhase) +
+          Math.sin(this.time * (17 + phase * 3) * speed + phase * 7 + ownPhase * 1.7) * 0.35;
         const tremorY =
-          Math.cos(this.time * (9 + phase * 5) * speed + phase * 23) +
-          Math.cos(this.time * (15 + phase * 4) * speed + phase * 11) * 0.3;
+          Math.cos(this.time * (9 + phase * 5) * speed + phase * 23 + ownPhase * 1.3) +
+          Math.cos(this.time * (15 + phase * 4) * speed + phase * 11 + ownPhase * 2.1) * 0.3;
         screenX += tremorX * tremble;
         screenY += tremorY * tremble;
       }
