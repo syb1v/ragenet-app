@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.11] - 2026-10-22
+
+### Fixed
+
+- The particle renderer now uses an oversized centered surface instead of a
+  square canvas/SVG viewport, so burst particles are not cut into a square.
+- The connection timer reserves a permanent slot, preventing the subscription
+  card and bottom controls from jumping when the timer appears or disappears.
+- Native sphere glow now fades smoothly between disconnected and connected
+  states instead of snapping on and off.
+
 ## [0.3.10] - 2026-10-22
 
 ### Changed

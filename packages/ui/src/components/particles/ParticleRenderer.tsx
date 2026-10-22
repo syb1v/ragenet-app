@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 interface ParticleRendererProps {
   simulation: ParticleSphereSimulation;
   size: number;
+  surfaceSize?: number;
   mode: ParticleMode;
 }
 
@@ -20,7 +21,9 @@ function palette(mode: ParticleMode, charge: number): [number, number, number] {
  * The canvas is created through createElement so this file can live inside a
  * react-native-web tree without pulling a DOM-only component into native.
  */
-export function ParticleRenderer({ simulation, size, mode }: ParticleRendererProps) {
+export function ParticleRenderer({ simulation, size, surfaceSize, mode }: ParticleRendererProps) {
+  const surface = surfaceSize ?? size;
+  const offset = (surface - size) / 2;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const colorRef = useRef<[number, number, number]>([118, 137, 166]);
   const glowRef = useRef(0.08);
@@ -30,8 +33,8 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
     if (!canvas) return;
 
     const dpr = Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
-    canvas.width = Math.round(size * dpr);
-    canvas.height = Math.round(size * dpr);
+    canvas.width = Math.round(surface * dpr);
+    canvas.height = Math.round(surface * dpr);
     const context = canvas.getContext('2d');
     if (!context) return;
 
@@ -47,7 +50,9 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
       frame += 1;
 
       const center = size / 2;
-      context.clearRect(0, 0, size, size);
+      context.clearRect(0, 0, surface, surface);
+      context.save();
+      context.translate(offset, offset);
 
       const blend = Math.min(1, dt * 4);
       const reaction = simulation.reaction;
@@ -100,14 +105,19 @@ export function ParticleRenderer({ simulation, size, mode }: ParticleRendererPro
         context.fill();
       }
 
+      context.restore();
       animation = requestAnimationFrame(draw);
     };
 
     animation = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(animation);
-  }, [mode, simulation, size]);
+  }, [mode, simulation, size, surface, offset]);
 
   return (
-    <canvas ref={canvasRef} aria-hidden style={{ width: size, height: size, display: 'block' }} />
+    <canvas
+      ref={canvasRef}
+      aria-hidden
+      style={{ width: surface, height: surface, display: 'block' }}
+    />
   );
 }

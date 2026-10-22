@@ -38,6 +38,8 @@ export function ParticleSphere({
   const { width } = useWindowDimensions();
   const size = explicitSize ?? Math.min(width * 0.7, 280);
   const hitRadius = size * 0.46;
+  const surfaceSize = size * 2.4;
+  const surfaceOffset = (surfaceSize - size) / 2;
   const simulation = useMemo(() => new ParticleSphereSimulation({ count: 560 }), []);
 
   const pressing = useRef(false);
@@ -377,7 +379,25 @@ export function ParticleSphere({
       style={[styles.root, { width: size, height: size }, webGestureStyle]}
       testID="particle-sphere"
     >
-      <ParticleRenderer simulation={simulation} size={size} mode={mode} />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.renderSurface,
+          {
+            width: surfaceSize,
+            height: surfaceSize,
+            left: -surfaceOffset,
+            top: -surfaceOffset,
+          },
+        ]}
+      >
+        <ParticleRenderer
+          simulation={simulation}
+          size={size}
+          surfaceSize={surfaceSize}
+          mode={mode}
+        />
+      </View>
     </View>
   );
 }
@@ -387,5 +407,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
+    overflow: 'visible',
+  },
+  renderSurface: {
+    position: 'absolute',
   },
 });

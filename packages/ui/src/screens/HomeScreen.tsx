@@ -154,12 +154,15 @@ export function HomeScreen({ desktop = false }: HomeScreenProps) {
                 {STATUS_LABEL[vpnStatus.state] ?? 'Отключено'}
               </Text>
             </View>
-            {isConnected ? (
-              <Text style={styles.connectedTimer}>
-                {String(Math.floor(connectedSeconds / 60)).padStart(2, '0')}:
-                {String(connectedSeconds % 60).padStart(2, '0')}
+            <View style={styles.timerSlot}>
+              <Text style={[styles.connectedTimer, !isConnected && styles.connectedTimerHidden]}>
+                {isConnected
+                  ? `${String(Math.floor(connectedSeconds / 60)).padStart(2, '0')}:${String(
+                      connectedSeconds % 60,
+                    ).padStart(2, '0')}`
+                  : ''}
               </Text>
-            ) : null}
+            </View>
           </View>
 
           {!desktop ? <View style={styles.mobileGap} /> : null}
@@ -348,12 +351,20 @@ const styles = StyleSheet.create({
   statusTextConnecting: {
     color: colors.brandStrong,
   },
+  timerSlot: {
+    alignItems: 'center',
+    height: 16,
+    justifyContent: 'center',
+    marginTop: 1,
+  },
   connectedTimer: {
     color: colors.text3,
     fontFamily: fonts.mono,
     fontSize: 11,
     lineHeight: 15,
-    marginTop: 1,
+  },
+  connectedTimerHidden: {
+    opacity: 0,
   },
   hint: {
     color: colors.text3,
