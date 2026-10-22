@@ -10,6 +10,12 @@ import {
   Text,
   View,
 } from 'react-native';
+import Animated, {
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { IconButton } from '../components/IconButton';
@@ -75,6 +81,77 @@ export function HomeScreen({ desktop = false }: HomeScreenProps) {
     return () => clearInterval(timer);
   }, [vpnStatus.state]);
 
+  const isConnected = vpnStatus.state === 'connected';
+  const statusLevel =
+    vpnStatus.state === 'error'
+      ? 3
+      : isConnected
+        ? 2
+        : vpnStatus.state === 'connecting' || vpnStatus.state === 'disconnecting'
+          ? 1
+          : 0;
+  const statusProgress = useSharedValue(statusLevel);
+  const timerOpacity = useSharedValue(isConnected ? 1 : 0);
+  const labelProgress = useSharedValue(1);
+  const [statusLabels, setStatusLabels] = useState({
+    from: vpnStatus.state,
+    to: vpnStatus.state,
+  });
+
+  useEffect(() => {
+    statusProgress.value = withTiming(statusLevel, { duration: 450 });
+  }, [statusLevel, statusProgress]);
+
+  useEffect(() => {
+    timerOpacity.value = withTiming(isConnected ? 1 : 0, { duration: 300 });
+  }, [isConnected, timerOpacity]);
+
+  useEffect(() => {
+    if (statusLabels.to === vpnStatus.state) return;
+    setStatusLabels({ from: statusLabels.to, to: vpnStatus.state });
+    labelProgress.value = 0;
+    labelProgress.value = withTiming(1, { duration: 300 });
+  }, [labelProgress, statusLabels.to, vpnStatus.state]);
+
+  const statusPillAnimatedStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      statusProgress.value,
+      [0, 1, 2, 3],
+      ['rgba(21, 30, 47, 0.6)', colors.brandSoft, colors.brandSoft, colors.dangerSoft],
+    ),
+    borderColor: interpolateColor(
+      statusProgress.value,
+      [0, 1, 2, 3],
+      [colors.line, colors.brandBorder, colors.brandBorder, 'rgba(243, 101, 110, 0.3)'],
+    ),
+  }));
+
+  const statusDotAnimatedStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      statusProgress.value,
+      [0, 1, 2, 3],
+      [colors.text2, colors.brandStrong, colors.brandStrong, colors.danger],
+    ),
+  }));
+
+  const statusTextAnimatedStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(
+      statusProgress.value,
+      [0, 1, 2, 3],
+      [colors.text2, colors.brandStrong, colors.text, colors.danger],
+    ),
+  }));
+
+  const fromLabelAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: 1 - labelProgress.value,
+  }));
+  const toLabelAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: labelProgress.value,
+  }));
+  const timerAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: timerOpacity.value,
+  }));
+
   if (!subscription) return null;
 
   const selectedServer =
@@ -84,7 +161,6 @@ export function HomeScreen({ desktop = false }: HomeScreenProps) {
   const supportUrl = subscription.meta.supportUrl ?? TELEGRAM_SUPPORT_URL;
   const flag = selectedServer?.flagEmoji ?? flagForCountryCode(selectedServer?.countryCode) ?? '🌐';
   const serverName = selectedServer ? stripFlag(selectedServer.name) : 'Выберите сервер';
-  const isConnected = vpnStatus.state === 'connected';
 
   const openSupport = async () => {
     try {
@@ -127,41 +203,31 @@ export function HomeScreen({ desktop = false }: HomeScreenProps) {
         <View style={desktop ? styles.desktopRow : styles.mobileRow}>
           <View style={[styles.coreArea, desktop && styles.desktopCore]}>
             <ParticleSphere state={vpnStatus.state} onToggle={toggleConnection} />
-            <View
-              style={[
-                styles.statusPill,
-                isConnected && styles.statusPillConnected,
-                vpnStatus.state === 'connecting' && styles.statusPillConnecting,
-                vpnStatus.state === 'error' && styles.statusPillError,
-              ]}
-            >
-              <View
-                style={[
-                  styles.statusDot,
-                  isConnected && styles.statusDotConnected,
-                  vpnStatus.state === 'connecting' && styles.statusDotConnecting,
-                  vpnStatus.state === 'error' && styles.statusDotError,
-                ]}
-              />
-              <Text
-                accessibilityLiveRegion="polite"
-                style={[
-                  styles.statusText,
-                  isConnected && styles.statusTextConnected,
-                  vpnStatus.state === 'connecting' && styles.statusTextConnecting,
-                ]}
-              >
-                {STATUS_LABEL[vpnStatus.state] ?? 'Отключено'}
-              </Text>
-            </View>
+            <Animated.View style={[styles.statusPill, statusPillAnimatedStyle]}>
+              <Animated.View style={[styles.statusDot, statusDotAnimatedStyle]} />
+              <View style={styles.statusLabelSlot}>
+                <Animated.Text
+                  accessibilityLiveRegion="polite"
+                  style={[styles.statusText, statusTextAnimatedStyle, fromLabelAnimatedStyle]}
+                >
+                  {STATUS_LABEL[statusLabels.from] ?? 'Отключено'}
+                </Animated.Text>
+                <Animated.Text
+                  accessibilityLiveRegion="polite"
+                  style={[styles.statusText, statusTextAnimatedStyle, toLabelAnimatedStyle]}
+                >
+                  {STATUS_LABEL[statusLabels.to] ?? 'Отключено'}
+                </Animated.Text>
+              </View>
+            </Animated.View>
             <View style={styles.timerSlot}>
-              <Text style={[styles.connectedTimer, !isConnected && styles.connectedTimerHidden]}>
+              <Animated.Text style={[styles.connectedTimer, timerAnimatedStyle]}>
                 {isConnected
                   ? `${String(Math.floor(connectedSeconds / 60)).padStart(2, '0')}:${String(
                       connectedSeconds % 60,
                     ).padStart(2, '0')}`
-                  : ''}
-              </Text>
+                  : '00:00'}
+              </Animated.Text>
             </View>
           </View>
 
@@ -339,11 +405,20 @@ const styles = StyleSheet.create({
   statusDotError: {
     backgroundColor: colors.danger,
   },
+  statusLabelSlot: {
+    height: 15,
+    justifyContent: 'center',
+    width: 100,
+  },
   statusText: {
     color: colors.text2,
     fontFamily: fonts.semibold,
     fontSize: 11,
+    left: 0,
     lineHeight: 15,
+    position: 'absolute',
+    right: 0,
+    textAlign: 'center',
   },
   statusTextConnected: {
     color: colors.text,

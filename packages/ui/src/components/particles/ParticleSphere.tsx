@@ -56,7 +56,6 @@ export function ParticleSphere({
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
   const pressOrigin = useRef({ x: 0.5, y: 0.5 });
   const burstFrame = useRef<number | null>(null);
-  const previousState = useRef(state);
   const burstStarted = useRef(false);
   const reportedCharge = useRef(0);
 
@@ -80,12 +79,6 @@ export function ParticleSphere({
   useEffect(() => {
     simulation.setMode(mode);
   }, [mode, simulation]);
-
-  useEffect(() => {
-    if (previousState.current === state) return;
-    simulation.triggerReaction(state === 'connected' ? 1.3 : state === 'disconnected' ? 0.9 : 1.1);
-    previousState.current = state;
-  }, [simulation, state]);
 
   const clearTimers = () => {
     if (holdTimer.current) {

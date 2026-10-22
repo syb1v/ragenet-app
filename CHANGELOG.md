@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.12] - 2026-10-22
+
+### Changed
+
+- Renderer animation loops no longer restart when the VPN state changes,
+  removing the canvas reset and visual jerk between statuses.
+- Status changes no longer trigger an extra radial reaction pulse in the
+  particle simulation.
+- Particle and glow colors now transition over roughly 600 ms instead of
+  snapping in about 250 ms.
+- The connection status pill now animates background, border, dot and text
+  colors with Reanimated, and crossfades its label.
+
 ## [0.3.11] - 2026-10-22
 
 ### Fixed

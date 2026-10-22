@@ -24,6 +24,8 @@ function colorForMode(mode: ParticleMode, charge: number): [number, number, numb
 export function ParticleRenderer({ simulation, size, surfaceSize, mode }: ParticleRendererProps) {
   const surface = surfaceSize ?? size;
   const offset = (surface - size) / 2;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
   const [paths, setPaths] = useState<[string, string, string]>(['', '', '']);
   const colorRef = useRef<[number, number, number]>([118, 137, 166]);
   const glowRef = useRef(0.08);
@@ -61,9 +63,9 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
         }
         setPaths([buckets[0].join(''), buckets[1].join(''), buckets[2].join('')]);
 
-        const target = colorForMode(mode, simulation.charge);
+        const target = colorForMode(modeRef.current, simulation.charge);
         const current = colorRef.current;
-        const blend = Math.min(1, dt * 4);
+        const blend = Math.min(1, dt * 1.8);
         for (let channel = 0; channel < 3; channel += 1) {
           current[channel] += (target[channel] - current[channel]) * blend;
         }
@@ -76,9 +78,9 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
         );
         setStrokeWidth(1.35 + simulation.charge * 0.35 + simulation.reaction * 0.15);
         const targetGlow =
-          (mode === 'connected' ? 0.24 : 0.03 + simulation.charge * 0.18) +
+          (modeRef.current === 'connected' ? 0.24 : 0.03 + simulation.charge * 0.18) +
           simulation.burstGlow * 0.16;
-        glowRef.current += (targetGlow - glowRef.current) * Math.min(1, dt * 4);
+        glowRef.current += (targetGlow - glowRef.current) * Math.min(1, dt * 1.8);
         setGlow(glowRef.current);
         const wave = simulation.getWave();
         setWaveRing(
@@ -98,7 +100,7 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
 
     animation = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animation);
-  }, [mode, offset, simulation, size]);
+  }, [offset, simulation, size]);
 
   return (
     <Svg width={surface} height={surface}>

@@ -123,7 +123,7 @@ export const DEVICE = {
   os: platformName(),
   osVersion: Platform.Version?.toString() ?? 'unknown',
   model: deviceModel(),
-  appVersion: Constants.expoConfig?.version ?? '0.3.11',
+  appVersion: Constants.expoConfig?.version ?? '0.3.12',
 };
 
 let vpnBridge: VpnBridge | null = null;

@@ -24,6 +24,8 @@ function palette(mode: ParticleMode, charge: number): [number, number, number] {
 export function ParticleRenderer({ simulation, size, surfaceSize, mode }: ParticleRendererProps) {
   const surface = surfaceSize ?? size;
   const offset = (surface - size) / 2;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const colorRef = useRef<[number, number, number]>([118, 137, 166]);
   const glowRef = useRef(0.08);
@@ -54,11 +56,11 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
       context.save();
       context.translate(offset, offset);
 
-      const blend = Math.min(1, dt * 4);
+      const blend = Math.min(1, dt * 1.8);
       const reaction = simulation.reaction;
       const charge = simulation.charge;
       const targetGlow =
-        (mode === 'connected' ? 0.25 : mode === 'connecting' ? 0.16 : 0.06) +
+        (modeRef.current === 'connected' ? 0.25 : modeRef.current === 'connecting' ? 0.16 : 0.06) +
         charge * 0.16 +
         simulation.burstGlow * 0.2 +
         reaction * 0.08;
@@ -72,7 +74,7 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
       context.fillRect(0, 0, size, size);
 
       context.globalCompositeOperation = 'lighter';
-      const targetColor = palette(mode, charge);
+      const targetColor = palette(modeRef.current, charge);
       const color = colorRef.current;
       for (let channel = 0; channel < 3; channel += 1) {
         color[channel] += (targetColor[channel] - color[channel]) * blend;
@@ -98,7 +100,7 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
       context.globalCompositeOperation = 'source-over';
 
       // A tiny deterministic twinkle every few frames keeps the sphere alive.
-      if (mode !== 'connecting' && frame % 3 === 0) {
+      if (modeRef.current !== 'connecting' && frame % 3 === 0) {
         context.beginPath();
         context.arc(center, center, 1.2, 0, Math.PI * 2);
         context.fillStyle = 'rgba(255, 255, 255, 0.4)';
@@ -111,7 +113,7 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
 
     animation = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(animation);
-  }, [mode, simulation, size, surface, offset]);
+  }, [simulation, size, surface, offset]);
 
   return (
     <canvas
