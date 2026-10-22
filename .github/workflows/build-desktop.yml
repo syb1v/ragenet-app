@@ -85,7 +85,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          PRERELEASE: ${{ github.event_name == 'workflow_dispatch' }}
+          PRERELEASE: 'false'
         run: |
           mkdir -p release-assets
           # Publish installers only. Tauri bundles contain dozens of runtime

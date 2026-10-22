@@ -201,7 +201,7 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          PRERELEASE: ${{ github.event_name == 'workflow_dispatch' }}
+          PRERELEASE: 'false'
         run: |
           chmod +x scripts/publish-release.sh
           scripts/publish-release.sh "app-v${APP_VERSION}" "${APP_VERSION}" signed

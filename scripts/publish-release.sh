@@ -58,7 +58,7 @@ fi
 gh release upload "$TAG" "${files[@]}" --clobber
 
 if [ "$PRERELEASE" != "true" ]; then
-  gh release edit "$TAG" --prerelease=false >/dev/null
+  gh release edit "$TAG" --prerelease=false --latest >/dev/null
 fi
 
 echo "Published ${#files[@]} asset(s) to $TAG"
