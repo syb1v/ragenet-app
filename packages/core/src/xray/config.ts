@@ -214,7 +214,8 @@ export function sanitizeFullConfig(input: JsonObject, options: BuildXrayConfigOp
     }
   }
   const activeRules = rules.filter(
-    (rule) => !Array.isArray(rule.inboundTag) || rule.inboundTag.length > 0,
+    (rule) =>
+      (!Array.isArray(rule.inboundTag) || rule.inboundTag.length > 0) && rule.outboundTag !== 'api',
   );
 
   // A full config may have been written for its own local proxy inbounds and
