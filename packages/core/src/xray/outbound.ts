@@ -86,6 +86,10 @@ function parseObject(value: string | undefined): JsonObject | null {
   return null;
 }
 
+function isObject(value: unknown): value is JsonObject {
+  return value != null && typeof value === 'object' && !Array.isArray(value);
+}
+
 const XHTTP_EXTRA_KEYS = [
   'scMaxEachPostBytes',
   'scMinPostsIntervalMs',
@@ -365,28 +369,39 @@ function hysteria2Outbound(node: ServerNode): JsonObject {
     hysteriaSettings.udpIdleTimeout = udpIdleTimeout;
   }
 
-  const udpMasks: JsonObject[] = [];
-  if (query.obfs?.toLowerCase() === 'salamander' && query['obfs-password']) {
+  // `fm` is the server-provided FinalMask JSON. It is authoritative and may
+  // contain TCP masks, UDP masks and QUIC parameters. Preserve the whole object
+  // instead of rebuilding only the two fields this client happens to know.
+  const serverFinalmask = parseObject(query.fm);
+  const finalmask: JsonObject = serverFinalmask ? { ...serverFinalmask } : {};
+
+  const configuredUdp =
+    Array.isArray(finalmask.udp) && finalmask.udp.length > 0 ? finalmask.udp.filter(isObject) : [];
+  const udpMasks: JsonObject[] = [...configuredUdp];
+  if (
+    udpMasks.length === 0 &&
+    query.obfs?.toLowerCase() === 'salamander' &&
+    query['obfs-password']
+  ) {
     udpMasks.push({
       type: 'salamander',
       settings: { password: query['obfs-password'] },
     });
   }
+  if (udpMasks.length > 0) finalmask.udp = udpMasks;
 
-  const quicParams: JsonObject = {};
+  const configuredQuic = isObject(finalmask.quicParams) ? finalmask.quicParams : {};
+  const quicParams: JsonObject = { ...configuredQuic };
   const bandwidth = (value: string | undefined): string | undefined => {
     if (!value) return undefined;
     return /^\d+(\.\d+)?$/.test(value.trim()) ? `${value.trim()} mbps` : value.trim();
   };
   const up = bandwidth(query.up);
   const down = bandwidth(query.down);
-  if (up) quicParams.brutalUp = up;
-  if (down) quicParams.brutalDown = down;
-  if (query.congestion) quicParams.congestion = query.congestion;
-  if (query.mport) quicParams.udpHop = { ports: query.mport };
-
-  const finalmask: JsonObject = {};
-  if (udpMasks.length > 0) finalmask.udp = udpMasks;
+  if (up && quicParams.brutalUp == null) quicParams.brutalUp = up;
+  if (down && quicParams.brutalDown == null) quicParams.brutalDown = down;
+  if (query.congestion && quicParams.congestion == null) quicParams.congestion = query.congestion;
+  if (query.mport && quicParams.udpHop == null) quicParams.udpHop = { ports: query.mport };
   if (Object.keys(quicParams).length > 0) finalmask.quicParams = quicParams;
 
   return {

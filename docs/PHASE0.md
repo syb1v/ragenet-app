@@ -1,6 +1,6 @@
 # Phase 0 — foundation
 
-**Status:** done · **App version:** 0.3.15 · **Next:** Phase 1 (Android VPN MVP)
+**Status:** done · **App version:** 0.3.16 · **Next:** Phase 1 (Android VPN MVP)
 
 See [ROADMAP.md](ROADMAP.md) for dates and [VERSIONING.md](VERSIONING.md) for
 release rules.
@@ -19,8 +19,8 @@ release rules.
 - [x] Tap / stationary hold actions; drag is play-only.
 - [x] Remnawave subscription parser (base64, plain, JSON, full config).
 - [x] Metadata parser (headers + body lines).
-- [x] Xray config builder with TUN inbound, stats, routing presets.
-- [x] Full-config sanitizer (loopback-only inbounds).
+- [x] Xray config builder with TUN inbound and routing presets, without a local API.
+- [x] Full-config sanitizer (TUN-only inbounds).
 - [x] HWID/device info helper.
 - [x] Unit tests for parser and Xray config.
 - [x] Branded mobile/desktop icons generated from the logo.

@@ -39,9 +39,9 @@ subscription URL
   → decode base64 / plain / full JSON
   → parse metadata + server nodes
   → user picks a server
-  → build Xray JSON (TUN inbound, DNS, routing, stats)
+  → build Xray JSON (TUN inbound, DNS, routing)
   → native bridge starts the core
-  → status/stats events come back to the UI
+  → native status and byte-counter events come back to the UI
 ```
 
 ### Subscription metadata
@@ -64,20 +64,23 @@ Supported headers and body lines:
 The generated config always contains:
 
 - a `tun` inbound (`ragenet0`, MTU 1500, sniffing);
-- a loopback-only stats API inbound;
 - the selected proxy outbound;
 - `direct` and `block` outbounds;
-- routing rules for API, local traffic and the final proxy route;
-- stats/policy blocks.
+- routing rules for local traffic and the final proxy route.
+
+The client does not start a local Xray API inbound. Traffic counters are read
+from the native tunnel layer and sent to the UI as events.
 
 Hysteria 2 links are emitted as Xray's `hysteria` outbound over the
-QUIC/HTTP3 `hysteria` transport. XHTTP links preserve advanced `extra`
-settings (padding, session/uplink keys and xmux) instead of flattening them.
+QUIC/HTTP3 `hysteria` transport. The server-provided `fm` FinalMask JSON is
+preserved, including `quicParams` such as `udpHop`, idle timeout and keepalive.
+XHTTP links preserve advanced `extra` settings (padding, session/uplink keys
+and xmux) instead of flattening them.
 
 Full configs returned by a provider are sanitized before use: every non-TUN
-inbound is forced to `127.0.0.1`, public `dokodemo-door`/SOCKS/HTTP inbounds are
-not allowed to listen on external interfaces, and the TUN/stats plumbing is
-added if missing.
+inbound is removed, the API block is removed, and a TUN inbound is added if
+missing. Full-config probes keep only outbounds, so a ping cannot start
+provider-provided listeners.
 
 ## Native contracts
 
@@ -115,7 +118,8 @@ are always cancellable; a stale start result must not overwrite a newer state.
 
 - Subscription URLs and UUIDs are secrets: never log them, redact in exported
   logs, store in Keychain/Keystore/keyring.
-- Force full-config inbounds to loopback; do not allow arbitrary public listeners.
+- Keep only the TUN inbound in full configs; never start provider-provided
+  SOCKS/HTTP/API listeners.
 - Desktop helper accepts a fixed command set, not a shell.
 - CSP in Tauri; no remote content in the webview.
 - Update artifacts are checksummed/signed before production.

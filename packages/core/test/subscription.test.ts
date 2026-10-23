@@ -85,6 +85,15 @@ describe('subscription parser', () => {
     expect(parsed.servers[3].transport).toBe('ws');
   });
 
+  it('drops loopback separator links from a subscription', () => {
+    const local =
+      'ss://YWVzLTI1Ni1nY206cGFzcw==@127.0.0.1:1234#%E2%AC%87%EF%B8%8F%20%D0%A2%D0%BE%D0%BB%D1%8C%D0%BA%D0%BE%20%D0%B5%D1%81%D0%BB%D0%B8%20%D0%BD%D0%B5%20%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D0%B5%D1%82%20VPN';
+    const parsed = parseSubscription(`${local}\n${shadowsocks}`);
+
+    expect(parsed.servers).toHaveLength(1);
+    expect(parsed.servers[0].host).toBe('se.example.com');
+  });
+
   it('parses body metadata and plain links', () => {
     const parsed = parseSubscription(
       `#profile-title: RageNet\n#support-url: https://example.com/help\n${vless}\n${trojan}`,
@@ -178,7 +187,7 @@ describe('user info', () => {
 describe('xray config', () => {
   const servers = parseSubscription(`${vless}\n${trojan}`).servers;
 
-  it('builds a safe TUN config with stats and selected outbound', () => {
+  it('builds a safe TUN config without a local API', () => {
     const config = buildXrayConfig(servers, {
       selectedServerId: servers[0].id,
       routingMode: 'global',
@@ -189,10 +198,11 @@ describe('xray config', () => {
       protocol: 'tun',
       settings: { name: 'ragenet0', mtu: 1500 },
     });
-    expect(config.inbounds.some((inbound) => inbound.tag === 'api')).toBe(true);
+    expect(config.inbounds).toHaveLength(1);
+    expect(config).not.toHaveProperty('api');
+    expect(config).not.toHaveProperty('stats');
     expect(config.outbounds[0]).toMatchObject({ protocol: 'vless', tag: servers[0].id });
     expect(config.routing).toMatchObject({ domainStrategy: 'IPIfNonMatch' });
-    expect(config.api).toMatchObject({ tag: 'api' });
   });
 
   it('adds direct rules for bypass-local', () => {
@@ -218,8 +228,9 @@ describe('xray config', () => {
       { selectedServerId: 'x' },
     );
 
-    const socks = config.inbounds.find((inbound) => inbound.tag === 'public');
-    expect(socks).toMatchObject({ listen: '127.0.0.1' });
     expect(config.inbounds.some((inbound) => inbound.protocol === 'tun')).toBe(true);
+    expect(config.inbounds.some((inbound) => inbound.protocol === 'socks')).toBe(false);
+    expect(config.inbounds).toHaveLength(1);
+    expect(config).not.toHaveProperty('api');
   });
 });

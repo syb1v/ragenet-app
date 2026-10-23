@@ -61,6 +61,14 @@ function parseNumber(value: string | undefined): number | undefined {
   return Number.isFinite(number) ? number : undefined;
 }
 
+function isLoopbackHost(host: string): boolean {
+  const normalized = host
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/g, '');
+  return normalized === 'localhost' || normalized === '::1' || /^127\./.test(normalized);
+}
+
 export function parseUserInfo(value: string | undefined): SubscriptionUserInfo {
   if (!value) return {};
   const result: SubscriptionUserInfo = {};
@@ -545,6 +553,9 @@ export function parseSubscription(body: string, headers: HeaderMap = {}): Parsed
     if (!trimmed || trimmed.startsWith('#')) continue;
     const node = parseShareLink(trimmed, meta);
     if (!node) continue;
+    // Subscription feeds use loopback entries as visual separators. They are
+    // not connectable from a VPN client and must not appear as locations.
+    if (isLoopbackHost(node.host)) continue;
     if (seen.has(node.rawLink)) continue;
     seen.add(node.rawLink);
     servers.push(node);

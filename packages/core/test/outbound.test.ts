@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildOutbound, buildXrayConfig, parseSubscription } from '../src';
+import { buildOutbound, buildPingBatchConfig, buildXrayConfig, parseSubscription } from '../src';
 
 describe('Hysteria 2 outbound', () => {
   it('builds a QUIC/HTTP3 Hysteria 2 outbound from a share link', () => {
@@ -41,6 +41,35 @@ describe('Hysteria 2 outbound', () => {
         },
       },
     });
+  });
+
+  it('preserves the server-provided fm finalmask, including quicParams', () => {
+    const fm = {
+      udp: [
+        {
+          type: 'salamander',
+          settings: { password: 'obfs-secret' },
+        },
+      ],
+      quicParams: {
+        udpHop: { ports: '20000-50000', interval: '15-30' },
+        maxIdleTimeout: 60,
+        keepAlivePeriod: 10,
+        disablePathMTUDiscovery: false,
+      },
+    };
+    const link =
+      'hysteria2://secret@fi.example.com:443?sni=fi.example.com' +
+      '&fm=' +
+      encodeURIComponent(JSON.stringify(fm)) +
+      '#Finland';
+    const node = parseSubscription(link).servers[0];
+    const outbound = buildOutbound(node) as Record<string, any>;
+    expect(outbound.streamSettings.finalmask).toEqual(fm);
+
+    const ping = buildPingBatchConfig(node);
+    const pingOutbound = (JSON.parse(ping!.xrayJson) as Record<string, any>).outbounds[0];
+    expect(pingOutbound.streamSettings.finalmask).toEqual(fm);
   });
 
   it('accepts a hy2 scheme and an auth query fallback', () => {

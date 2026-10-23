@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.16] - 2026-10-23
+
+### Security
+
+- Removed the local Xray API inbound and all `HandlerService`/`LoggerService`
+  services from generated configs. The client no longer exposes a control
+  surface on loopback.
+- Full-config sanitization now drops every non-TUN inbound instead of moving
+  SOCKS/HTTP/dokodemo inbounds to `127.0.0.1`.
+- Ping configs built from full configs now contain only outbounds, so a probe
+  cannot start server-provided inbounds or API services.
+
+### Fixed
+
+- Hysteria2 `fm` FinalMask JSON is now preserved, including `quicParams`
+  (`udpHop`, `maxIdleTimeout`, `keepAlivePeriod` and path-MTU settings).
+- Loopback Shadowsocks entries used as subscription separators are no longer
+  shown as connectable locations.
+
 ## [0.3.15] - 2026-10-23
 
 ### Fixed

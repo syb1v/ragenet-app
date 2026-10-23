@@ -10,7 +10,6 @@ export interface BuildXrayConfigOptions {
   tunName?: string;
   tunMtu?: number;
   dnsServers?: string[];
-  statsPort?: number;
 }
 
 export interface XrayConfig extends JsonObject {
@@ -44,16 +43,6 @@ function tunInbound(options: BuildXrayConfigOptions): JsonObject {
       destOverride: ['http', 'tls', 'quic'],
       routeOnly: false,
     },
-  };
-}
-
-function apiInbound(port: number): JsonObject {
-  return {
-    tag: 'api',
-    listen: '127.0.0.1',
-    port,
-    protocol: 'dokodemo-door',
-    settings: { address: '127.0.0.1' },
   };
 }
 
@@ -118,7 +107,6 @@ export function buildXrayConfig(
   const proxy = buildOutbound(selected);
   const routingMode = options.routingMode ?? 'global';
   const rules: JsonObject[] = [
-    { type: 'field', inboundTag: ['api'], outboundTag: 'api' },
     {
       type: 'field',
       domain: [`domain:${LATENCY_PROBE_DOMAIN}`],
@@ -138,20 +126,7 @@ export function buildXrayConfig(
       servers: options.dnsServers ?? DEFAULT_DNS,
       queryStrategy: 'UseIP',
     },
-    stats: {},
-    policy: {
-      system: {
-        statsInboundUplink: true,
-        statsInboundDownlink: true,
-        statsOutboundUplink: true,
-        statsOutboundDownlink: true,
-      },
-    },
-    api: {
-      tag: 'api',
-      services: ['HandlerService', 'LoggerService', 'StatsService'],
-    },
-    inbounds: [tunInbound(options), apiInbound(options.statsPort ?? 10085)],
+    inbounds: [tunInbound(options)],
     outbounds: [
       proxy,
       { tag: 'direct', protocol: 'freedom', settings: {} },
@@ -168,8 +143,9 @@ export function buildXrayConfig(
  * Harden a full Xray config before it reaches the core.
  *
  * Full configs are powerful and easy to misconfigure: a public SOCKS inbound
- * would turn the device into an open relay. We force every non-TUN inbound to
- * loopback and add the client's TUN/stats plumbing.
+ * would turn the device into an open relay, and a local API inbound would let
+ * other apps control the running core. We keep only the TUN inbound and remove
+ * every control or proxy inbound. Server routing and outbounds are preserved.
  */
 export function sanitizeFullConfig(input: JsonObject, options: BuildXrayConfigOptions): XrayConfig {
   const config = clone(input);
@@ -178,45 +154,33 @@ export function sanitizeFullConfig(input: JsonObject, options: BuildXrayConfigOp
 
   for (const inbound of inbounds) {
     const protocol = String(inbound.protocol ?? '').toLowerCase();
-    if (protocol === 'tun') {
-      const sniffing = isObject(inbound.sniffing) ? inbound.sniffing : {};
-      const destOverride = Array.isArray(sniffing.destOverride)
-        ? sniffing.destOverride
-        : ['http', 'tls', 'quic'];
-      safeInbounds.push({
-        ...inbound,
-        tag: inbound.tag ?? 'tun',
-        settings: {
-          ...(isObject(inbound.settings) ? inbound.settings : {}),
-          name:
-            (isObject(inbound.settings) && inbound.settings.name) || options.tunName || 'ragenet0',
-          mtu: (isObject(inbound.settings) && inbound.settings.mtu) || options.tunMtu || 1500,
-        },
-        // The generated probe rule matches the gstatic domain, so TUN
-        // sniffing must stay enabled even in a custom config.
-        sniffing: {
-          ...sniffing,
-          enabled: true,
-          destOverride,
-        },
-      });
-      continue;
-    }
+    if (protocol !== 'tun') continue;
 
-    // Keep local control/proxy inbounds, but never expose them to the network.
-    if (['socks', 'http', 'mixed', 'dokodemo-door'].includes(protocol)) {
-      safeInbounds.push({
-        ...inbound,
-        listen: '127.0.0.1',
-      });
-    }
+    const sniffing = isObject(inbound.sniffing) ? inbound.sniffing : {};
+    const destOverride = Array.isArray(sniffing.destOverride)
+      ? sniffing.destOverride
+      : ['http', 'tls', 'quic'];
+    safeInbounds.push({
+      ...inbound,
+      tag: inbound.tag ?? 'tun',
+      settings: {
+        ...(isObject(inbound.settings) ? inbound.settings : {}),
+        name:
+          (isObject(inbound.settings) && inbound.settings.name) || options.tunName || 'ragenet0',
+        mtu: (isObject(inbound.settings) && inbound.settings.mtu) || options.tunMtu || 1500,
+      },
+      // The generated probe rule matches the gstatic domain, so TUN
+      // sniffing must stay enabled even in a custom config.
+      sniffing: {
+        ...sniffing,
+        enabled: true,
+        destOverride,
+      },
+    });
   }
 
   if (!safeInbounds.some((inbound) => inbound.protocol === 'tun')) {
     safeInbounds.unshift(tunInbound(options));
-  }
-  if (!safeInbounds.some((inbound) => inbound.tag === 'api')) {
-    safeInbounds.push(apiInbound(options.statsPort ?? 10085));
   }
 
   const outbounds = Array.isArray(config.outbounds) ? config.outbounds.filter(isObject) : [];
@@ -225,21 +189,46 @@ export function sanitizeFullConfig(input: JsonObject, options: BuildXrayConfigOp
     outbounds.push({ tag: 'block', protocol: 'blackhole', settings: {} });
   }
 
+  // The API inbound is never started by the client. Remove any server-provided
+  // API block as well, otherwise a full config could expose control services
+  // on an inherited local port.
+  delete config.api;
+  delete config.stats;
+
   const routing = isObject(config.routing) ? config.routing : { domainStrategy: 'IPIfNonMatch' };
   const rules = Array.isArray(routing.rules) ? routing.rules.filter(isObject) : [];
-  if (!rules.some((rule) => Array.isArray(rule.inboundTag) && rule.inboundTag.includes('api'))) {
-    rules.unshift({ type: 'field', inboundTag: ['api'], outboundTag: 'api' });
+  const inboundTags = new Set(
+    safeInbounds
+      .map((inbound) => inbound.tag)
+      .filter((tag): tag is string => typeof tag === 'string'),
+  );
+  for (const rule of rules) {
+    if (!Array.isArray(rule.inboundTag)) continue;
+    const keptTags = rule.inboundTag.filter(
+      (tag): tag is string => typeof tag === 'string' && inboundTags.has(tag),
+    );
+    if (keptTags.length === 0) {
+      rule.inboundTag = [];
+    } else {
+      rule.inboundTag = keptTags;
+    }
   }
+  const activeRules = rules.filter(
+    (rule) => !Array.isArray(rule.inboundTag) || rule.inboundTag.length > 0,
+  );
+
   // A full config may have been written for its own local proxy inbounds and
   // never mention the TUN inbound we inject. Give TUN an explicit route so
   // custom DNS/routing rules cannot accidentally leave device traffic
   // unhandled. Explicit user rules still win because this is prepended only
   // when no TUN rule exists.
   const proxyTag = proxyOutboundTag(config);
+  const configuredTunTag = safeInbounds.find((inbound) => inbound.protocol === 'tun')?.tag;
+  const tunTag = typeof configuredTunTag === 'string' ? configuredTunTag : 'tun';
   if (proxyTag) {
     // The latency probe must follow the proxy path even in a custom config
     // whose first-match rules would send Google traffic direct.
-    rules.unshift({
+    activeRules.unshift({
       type: 'field',
       domain: [`domain:${LATENCY_PROBE_DOMAIN}`],
       outboundTag: proxyTag,
@@ -247,23 +236,23 @@ export function sanitizeFullConfig(input: JsonObject, options: BuildXrayConfigOp
   }
   if (
     proxyTag &&
-    !rules.some((rule) => Array.isArray(rule.inboundTag) && rule.inboundTag.includes('tun'))
+    !activeRules.some((rule) => Array.isArray(rule.inboundTag) && rule.inboundTag.includes(tunTag))
   ) {
-    const tunRule = { type: 'field', inboundTag: ['tun'], outboundTag: proxyTag };
+    const tunRule = { type: 'field', inboundTag: [tunTag], outboundTag: proxyTag };
     // Insert before a final catch-all. Appending after it would make the TUN
     // rule unreachable and could send device traffic direct in custom configs.
-    const catchAllIndex = rules.findIndex((rule) => {
+    const catchAllIndex = activeRules.findIndex((rule) => {
       const constraints = Object.keys(rule).filter(
         (key) => key !== 'type' && key !== 'outboundTag',
       );
       return constraints.length === 0 || (constraints.length === 1 && constraints[0] === 'network');
     });
-    if (catchAllIndex >= 0) rules.splice(catchAllIndex, 0, tunRule);
-    else rules.push(tunRule);
+    if (catchAllIndex >= 0) activeRules.splice(catchAllIndex, 0, tunRule);
+    else activeRules.push(tunRule);
   }
-  if (rules.length === 0) {
+  if (activeRules.length === 0) {
     const tag = proxyOutboundTag(config);
-    if (tag) rules.push({ type: 'field', network: 'tcp,udp', outboundTag: tag });
+    if (tag) activeRules.push({ type: 'field', network: 'tcp,udp', outboundTag: tag });
   }
 
   return {
@@ -273,25 +262,9 @@ export function sanitizeFullConfig(input: JsonObject, options: BuildXrayConfigOp
       access: 'none',
       ...(isObject(config.log) ? config.log : {}),
     },
-    stats: {},
-    policy: {
-      ...(isObject(config.policy) ? config.policy : {}),
-      system: {
-        statsInboundUplink: true,
-        statsInboundDownlink: true,
-        statsOutboundUplink: true,
-        statsOutboundDownlink: true,
-        ...(isObject(config.policy) && isObject(config.policy.system) ? config.policy.system : {}),
-      },
-    },
-    api: {
-      tag: 'api',
-      services: ['HandlerService', 'LoggerService', 'StatsService'],
-      ...(isObject(config.api) ? config.api : {}),
-    },
     inbounds: safeInbounds,
     outbounds,
-    routing: { ...routing, rules },
+    routing: { ...routing, rules: activeRules },
   };
 }
 
@@ -310,7 +283,13 @@ export function buildPingBatchConfig(server: ServerNode): PingBatchConfig | null
     try {
       const fullConfig = JSON.parse(server.fullConfig) as JsonObject;
       const tag = proxyOutboundTag(fullConfig);
-      return tag ? { xrayJson: server.fullConfig, outboundTag: tag } : null;
+      if (!tag) return null;
+      // The probe only needs outbounds. Do not start the server's inbounds or
+      // API services in the temporary core.
+      const outbounds = Array.isArray(fullConfig.outbounds)
+        ? fullConfig.outbounds.filter(isObject)
+        : [];
+      return { xrayJson: JSON.stringify({ outbounds }), outboundTag: tag };
     } catch {
       return null;
     }
