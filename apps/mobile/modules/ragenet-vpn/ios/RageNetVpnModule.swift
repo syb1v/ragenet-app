@@ -30,7 +30,12 @@ public final class RageNetVpnModule: Module {
       // of rebooting the phone.
       let existing = try await loadManager()
       manager = existing
-      if existing.connection.status != .disconnected || existing.isEnabled {
+      let existingStatus = existing.connection.status
+      if existing.isEnabled ||
+        existingStatus == .connected ||
+        existingStatus == .connecting ||
+        existingStatus == .reasserting ||
+        existingStatus == .disconnecting {
         existing.connection.stopVPNTunnel()
         _ = await waitForStatus(.disconnected, timeout: 2.5)
       }
