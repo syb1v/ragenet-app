@@ -146,8 +146,8 @@ are always cancellable; a stale start result must not overwrite a newer state.
   SOCKS/HTTP/API listeners.
 - Desktop helper accepts a fixed command set, not a shell.
 - CSP in Tauri; no remote content in the webview.
-- Update artifacts are checksummed/signed before production.
-- iOS/Android update integrity is verified before prompting the user.
+- Release artifacts must be checksummed/signed before production.
+- Update integrity must be verified before prompting the user.
 
 ## Maintenance
 
