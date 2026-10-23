@@ -31,8 +31,7 @@ public final class RageNetVpnModule: Module {
       let existing = try await loadManager()
       manager = existing
       let existingStatus = existing.connection.status
-      if existing.isEnabled ||
-        existingStatus == .connected ||
+      if existingStatus == .connected ||
         existingStatus == .connecting ||
         existingStatus == .reasserting ||
         existingStatus == .disconnecting {
