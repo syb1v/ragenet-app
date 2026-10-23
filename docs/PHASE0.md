@@ -1,60 +1,47 @@
 # Phase 0 — foundation
 
-**Status:** done · **App version:** 0.3.19 · **Next:** Phase 1 (Android VPN MVP)
+**Статус:** завершён · **Текущая версия:** 0.3.19 · **Следующий этап:** стабилизация 0.3.19 → Phase 4 (reconnect, stats, desktop).
 
-See [ROADMAP.md](ROADMAP.md) for dates and [VERSIONING.md](VERSIONING.md) for
-release rules.
+Phase 0 был фундаментом проекта. Часть пунктов, которые раньше были в «Not done», уже реализована в Phase 1–2 и отмечена здесь как выполненная.
 
-## Done
+## Сделано
 
-- [x] Separate `ragenet-app` repository skeleton with pnpm workspace.
-- [x] AGPL-3.0 license and branding assets.
-- [x] Design tokens matching the cabinet (`rage-ds.css`).
-- [x] Onboarding, home, settings, logs, add-key sheet, server sheet, reset sheet.
-- [x] Interactive RageNet sphere with tap-or-hold connect and native SVG rendering.
-- [x] Soft selection-tick haptics, progressive hold feedback and state transitions.
-- [x] Progressive haptic ramp for press-and-hold.
-- [x] Gentle drag feedback and full press/release lifecycle.
-- [x] Compact anchored subscription menu (QR, share, copy, delete).
-- [x] Tap / stationary hold actions; drag is play-only.
-- [x] Remnawave subscription parser (base64, plain, JSON, full config).
-- [x] Metadata parser (headers + body lines).
-- [x] Xray config builder with TUN inbound and routing presets, without a local API.
-- [x] Full-config sanitizer (TUN-only inbounds).
+- [x] Монорепозиторий `ragenet-app`, pnpm workspace, AGPL-3.0.
+- [x] Дизайн-токены, шрифты, темы, брендинг.
+- [x] Онбординг, главный экран, настройки, логи, листы подписки/серверов/сброса.
+- [x] Сфера: независимое дрожание частиц, tap/hold/drag, haptics, burst.
+- [x] Адаптивная частота рендера 60/90/120 Hz и 360–600 частиц на Android.
+- [x] Парсер Remnawave: base64, plain, JSON, full Xray config, заголовки.
+- [x] Группы-разделители подписки: 26 строк, 24 подключаемых сервера в текущем feed.
+- [x] Xray config builder: TUN, DNS, routing, без локального API.
+- [x] Full-config sanitizer: TUN-only inbounds, без socks/http/dokodemo/API.
+- [x] Hysteria2 `fm`/`finalmask` с `quicParams`; XHTTP `extra`.
 - [x] HWID/device info helper.
-- [x] Unit tests for parser and Xray config.
-- [x] Branded mobile/desktop icons generated from the logo.
-- [x] Tauri 2 desktop shell scaffolding.
-- [x] Architecture, native contracts, signing notes.
-- [x] GitHub Actions CI for types/tests/prettier/web build.
-- [x] Android/iOS JS bundles verified (`expo export`).
+- [x] Bridge `packages/vpn`: native contract, sync/async normalization, mock.
+- [x] Android `VpnService`, libXray AAR, TUN fd, foreground service, permission flow.
+- [x] Android ping в изолированном `:ping` процессе.
+- [x] iOS Packet Tunnel Extension, App Group logs, `NETunnelProviderManager`, LibXray XCFramework.
+- [x] iOS stale-tunnel reset and start/stop timeouts.
+- [x] Реальный fetch подписки, SecureStore/Keychain, QR-сканер.
+- [x] CI: typecheck, tests, prettier, web build.
+- [x] GitHub Actions: Android Release APK, unsigned iOS IPA, desktop installers.
+- [x] Tauri 2 desktop shell.
+- [x] Документация: architecture, signing, builds, roadmap, versioning.
 
-## Not done yet
+## Ещё не сделано
 
-- [ ] `packages/vpn` native bridge + real Android `VpnService`.
-- [ ] libXray AAR/XCFramework wiring.
-- [ ] iOS Packet Tunnel target + App Group.
-- [ ] Tauri Xray sidecar + privileged helper.
-- [ ] Real subscription fetch on device (including CORS-free native fetch).
-- [ ] Real ping/statistics from Xray.
-- [ ] Full config import UI.
-- [ ] QR camera scanner.
-- [ ] Localization extraction (RU/EN).
-- [ ] App update checks, crash reporting, remote config.
-- [ ] GitHub release workflows for signed/unsigned artifacts.
-- [ ] Staging Remnawave test matrix.
-- [ ] `THIRD_PARTY_NOTICES.md`.
+- [ ] Проверка Android VPN permission и ping на физическом устройстве после 0.3.19.
+- [ ] Проверка iOS reset-туннеля на подписанном IPA.
+- [ ] Reconnect после смены сети и `setUnderlyingNetworks`.
+- [ ] Автообновление подписки по `profile-update-interval`.
+- [ ] Живая статистика трафика из native-слоя.
+- [ ] Desktop Xray sidecar + привилегированный TUN helper.
+- [ ] Подписанные production-артефакты Android/iOS/desktop.
+- [ ] Staging-матрица протоколов и iOS-подпись двумя профилями.
 
-## Next checkpoint
+## Контекст
 
-Phase 1 starts with a native spike:
-
-1. Add `expo-modules-core` module `RageNetVpn`.
-2. Android `VpnService` with a stub TUN and `LibXray.invoke`.
-3. Connect to a staging VLESS Reality node.
-4. Add status + traffic events to the existing store.
-5. Build a universal debug APK in CI.
-
-Do not start iOS Packet Tunnel work until the Apple Developer Program question
-is resolved; the code can be written, but it cannot be validated without the
-Network Extension entitlement.
+- Android/iOS уже поднимают реальный туннель; desktop пока UI.
+- Текущая подписка — share-link feed, не full JSON. Balancer/observatory/mux/sockopt/FakeDNS/fragment/noise не добавляются, пока сервер их не отдаёт.
+- iOS IPA остаётся unsigned; VPN extension требует Apple Developer Program и entitlement `packet-tunnel-provider`.
+- Hysteria2 с `insecure=1` без `pinSHA256` не поддерживается Xray 26.10.

@@ -1,25 +1,37 @@
 # RageNet VPN app
 
-Кроссплатформенный клиент RageNet на React Native (мобильные) и Tauri + React Native Web (десктоп). Ядро — Xray-core через `libXray`, с встроенным TUN-инбаундом.
+Кроссплатформенный клиент RageNet: React Native для Android/iOS и Tauri + React Native Web для desktop. Ядро — Xray-core через `libXray` с TUN-инбаундом.
 
-> **Статус: Phase 1–2, версия 0.3.19.** Android/iOS уже используют реальный Xray-туннель; iOS-подпись и привилегированный desktop-helper остаются отдельными задачами. План и даты — в [docs/ROADMAP.md](docs/ROADMAP.md), версии — в [docs/VERSIONING.md](docs/VERSIONING.md).
+> **Статус: Phase 1–2, версия 0.3.19.** Android и iOS используют реальный Xray-туннель. iOS-подпись и привилегированный desktop-helper пока остаются отдельными задачами.
 
 ## Что уже работает
 
-- онбординг с добавлением ключа: буфер, QR-заглушка, ручной ввод;
-- главный экран с нашей сферой: 1600 частиц, мягкая реакция на палец, удержание, drag и мягкие haptic-тики;
-- карточка подписки, трафик, срок действия, выбор сервера, поддержка;
-- компактное меню подписки рядом с кнопкой «…»: QR, поделиться, копировать, удалить;
-- настройки, логи, сброс, «О приложении»;
-- парсер Remnawave-подписок: base64/plain/JSON/full Xray config, заголовки `subscription-userinfo`, `profile-title`, `support-url`, `announce`;
-- сборщик Xray-конфига с TUN inbound, DNS и routing-пресетами, без локального API;
-- Hysteria2 (`hysteria2://` / `hy2://`) через QUIC/HTTP3-транспорт Xray;
-- XHTTP с расширенными `extra`-параметрами из share-ссылок;
-- безопасный санитайзер полных Xray-конфигов;
-- нативная сфера на SVG-рендерере без тяжёлого Skia-сборки;
+- онбординг и добавление подписки из буфера, QR-кода и вручную;
+- главный экран со сферой: независимое дрожание частиц, tap/hold/drag, haptics и плавные переходы;
+- адаптивная сфера: 60/90/120 fps по частоте дисплея, 360–600 частиц на Android;
+- карточка подписки, квота, срок действия, выбор локации и поддержка;
+- группы подписки: 24 подключаемых сервера и 2 служебных заголовка в текущем feed;
+- парсер Remnawave: base64/plain/JSON/full Xray config, заголовки `subscription-userinfo`, `profile-title`, `support-url`, `announce`, `profile-update-interval`;
+- сборщик Xray-конфига с TUN inbound, DNS и routing; без локального API;
+- VLESS Reality, VLESS XHTTP Reality/TLS, Hysteria2, Shadowsocks, Trojan, VMess;
+- Hysteria2 `fm` FinalMask с `quicParams` (`udpHop`, timeout, keepalive);
+- XHTTP `extra` со всеми полями (`xmux`, headers, padding, session/uplink);
+- санитайзер full-config: только TUN, без socks/http/dokodemo/API;
+- потоковый пинг по локациям, отмена пинга касанием сферы, пинг через `:ping` процесс на Android;
+- сохранение подписки в SecureStore/Keychain с чанками;
+- стабильный HWID для Remnawave;
+- логи с фильтрами, скачиванием и выводом Xray core;
 - Tauri 2 shell для Windows/macOS/Linux;
-- генератор иконок из брендового логотипа;
-- unit-тесты парсера, конфига и Xray-сборщика.
+- unit-тесты парсера, конфига, bridge и Xray-сборщика.
+
+## Ограничения текущей версии
+
+- iOS IPA собирается **unsigned**; для запуска нужен Apple Developer Program, два профиля и Network Extension entitlement.
+- Desktop пока UI без TUN/sidecar.
+- Живая статистика трафика и автообновление подписки ещё не подключены.
+- Android VPN permission и пинг требуют проверки на физическом устройстве после 0.3.19.
+- iOS-туннель после зависания восстанавливается сбросом профиля; нужна проверка на устройстве.
+- Full JSON с balancer/observatory/mux/sockopt/FakeDNS/fragment/noise текущая подписка не содержит, поэтому эти поля не добавляются клиентом.
 
 ## Превью
 
@@ -43,28 +55,28 @@ pnpm build:web
 apps/
   mobile/        Expo React Native (Android/iOS)
   desktop/       Tauri 2 shell поверх Expo web build
+  mobile/modules/ragenet-vpn/  Expo native module: VPN, ping, haptics
+  mobile/targets/tunnel/       iOS Packet Tunnel extension
 packages/
   design/        токены, шрифты, темы
   core/          подписки, Remnawave-заголовки, Xray-конфиг, HWID
   vpn/           контракт native bridge + mock
   particles/     симуляция сферы
   ui/            экраны, компоненты, store
-native/
-  android/       контракт VpnService + libXray
-  ios/           контракт Packet Tunnel + LibXray
-  desktop/       контракт Xray sidecar + helper
-tools/
-  generate-icons.py
+native/          контракты и версии native-ядра
+tools/           генерация иконок, сборка libXray
 ```
 
 ## Документация
 
-- [Roadmap и даты](docs/ROADMAP.md)
+- [Roadmap и текущее состояние](docs/ROADMAP.md)
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Версионирование и релизы](docs/VERSIONING.md)
 - [Сборки в GitHub Actions](docs/BUILDS.md)
 - [Подпись и дистрибуция](docs/SIGNING.md)
-- [Phase 0: что сделано](docs/PHASE0.md)
+- [Phase 0: фундамент](docs/PHASE0.md)
+- [iOS signing](docs/IOS_SIGNING.md)
+- [Signed IPA workflow](docs/SIGNED_IOS.md)
 
 ## Команды
 
@@ -73,31 +85,24 @@ pnpm dev                      # Expo dev server
 pnpm web                      # Expo web
 pnpm android                  # Expo Android
 pnpm ios                      # Expo iOS (macOS)
-pnpm build:web                # статический web export в apps/mobile/dist
-pnpm --filter @ragenet/desktop dev   # Tauri dev (нужен Rust)
-pnpm --filter @ragenet/desktop build # Tauri build
-```
-
-## Проверки
-
-```bash
+pnpm build:web                # статический web export
 pnpm version:check
 pnpm format:check
 pnpm typecheck
 pnpm test
+pnpm --filter @ragenet/desktop dev
+pnpm --filter @ragenet/desktop build
 ```
 
-CI: `.github/workflows/ci.yml` — типы, тесты, prettier и web build на каждый push/PR.
+## Сборки и подпись
 
-## Сборки
+- Android: CI собирает self-signed Release APK arm64-v8a со встроенным `index.android.bundle`; R8/minify отключён для стабильного запуска.
+- iOS: Release IPA содержит `main.jsbundle` и `PlugIns/tunnel.appex`, но без подписи не устанавливается для VPN.
+- macOS: для TUN нужен привилегированный helper; для распространения — Developer ID + notarization.
+- Windows: EXE/MSI без code-signing сертификата покажет SmartScreen.
 
-- Android: универсальный APK должен быть **подписан**. «Неподписанный APK» нельзя установить; CI собирает self-signed Release APK со встроенным JS-бандлом.
-- iOS: unsigned IPA собирается, но VPN-extension не запустится без платного Apple Developer Program и entitlement `packet-tunnel-provider`.
-- macOS: для полноценного TUN нужен привилегированный helper; для распространения — Developer ID + notarization.
-- Windows: EXE будет без подписи, пока не добавлен code-signing сертификат.
-
-Подробности: [docs/SIGNING.md](docs/SIGNING.md).
+Подробности: [docs/BUILDS.md](docs/BUILDS.md), [docs/SIGNING.md](docs/SIGNING.md).
 
 ## Лицензия
 
-AGPL-3.0. Xray-core распространяется под MPL-2.0, libXray — под MIT. Сторонние лицензии и attribution добавляются в `THIRD_PARTY_NOTICES.md` перед первым релизом.
+AGPL-3.0. Xray-core распространяется под MPL-2.0, libXray — под MIT. Сторонние лицензии и attribution — в `THIRD_PARTY_NOTICES.md`.

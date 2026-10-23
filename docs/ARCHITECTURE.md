@@ -22,9 +22,10 @@ apps/desktop ─┼─ packages/ui ── packages/design
 packages/ui ── packages/particles (sphere simulation)
   └─ packages/vpn contract (native bridge)
 
-native/android  VpnService + libXray.aar
-native/ios      Packet Tunnel + LibXray.xcframework
-native/desktop  Xray sidecar + privileged helper
+apps/mobile/modules/ragenet-vpn/android  VpnService + ping service + libXray.aar
+apps/mobile/modules/ragenet-vpn/ios      Expo bridge + LibXray.xcframework
+apps/mobile/targets/tunnel               Packet Tunnel extension + App Group logs
+native/desktop                           Xray sidecar + privileged helper (planned)
 ```
 
 `packages/core` is platform-agnostic. It must not import React, React Native or
@@ -37,12 +38,16 @@ testable in Node and reusable on every platform.
 subscription URL
   → fetch with Remnawave/HWID headers
   → decode base64 / plain / full JSON
-  → parse metadata + server nodes
-  → user picks a server
+  → parse metadata + server nodes + group separators
+  → user picks a connectable server
   → build Xray JSON (TUN inbound, DNS, routing)
   → native bridge starts the core
-  → native status and byte-counter events come back to the UI
+  → native status events come back to the UI
 ```
+
+The current subscription feed is a base64 list of share links. It contains 26
+rows: 24 connectable servers and two loopback markers rendered as non-clickable
+group headers. Loopback markers are never selected, pinged, or used as a proxy.
 
 ### Subscription metadata
 
@@ -58,6 +63,8 @@ Supported headers and body lines:
 - body `#profile-title:`, `#support-url:`, `#announce:`, etc.
 
 `expire` values above 32 000 000 000 are treated as milliseconds.
+`profile-update-interval` is parsed but automatic refresh is not implemented
+yet; the UI currently has a manual refresh action.
 
 ### Xray config
 
@@ -68,8 +75,9 @@ The generated config always contains:
 - `direct` and `block` outbounds;
 - routing rules for local traffic and the final proxy route.
 
-The client does not start a local Xray API inbound. Traffic counters are read
-from the native tunnel layer and sent to the UI as events.
+The client does not start a local Xray API inbound. Live traffic counters are
+planned for the native tunnel layer; until then the UI shows the subscription
+quota from `subscription-userinfo`, not real-time speed.
 
 Hysteria 2 links are emitted as Xray's `hysteria` outbound over the
 QUIC/HTTP3 `hysteria` transport. The server-provided `fm` FinalMask JSON is
@@ -80,7 +88,15 @@ and xmux) instead of flattening them.
 Full configs returned by a provider are sanitized before use: every non-TUN
 inbound is removed, the API block is removed, and a TUN inbound is added if
 missing. Full-config probes keep only outbounds, so a ping cannot start
-provider-provided listeners.
+provider-provided listeners. The client currently receives share-link feeds, so
+this path is a hardening measure for future imports.
+
+### Renderer and display refresh
+
+The particle sphere reads the native display refresh rate (60/90/120 Hz) and
+uses it as the paint budget. Android uses 360–600 particles depending on the
+refresh rate and screen width; iOS keeps its existing cloud. Renderer state is
+batched into one update per animation frame.
 
 ## Native contracts
 
@@ -89,13 +105,21 @@ provider-provided listeners.
 `VpnService` creates the TUN and passes its fd through `xray.tun.fd`. Xray
 outbound sockets are protected through `LibXray.registerDialerController`.
 Foreground service type is `specialUse` with subtype `vpn` on Android 14+.
+VPN consent is requested through `VpnService.prepare` and an Expo promise
+resolved by `OnActivityResult`; the tunnel starts only after `RESULT_OK`.
+
+Per-location ping runs in the separate `:ping` process. That process binds to a
+non-VPN underlying network, calls `LibXray.touch()`, and invokes `pingBatch`, so
+a probe does not enter the active tunnel and does not need a local API inbound.
 
 ### iOS
 
 The main app owns `NETunnelProviderManager`; the Packet Tunnel extension owns
 `LibXray`. The config travels through the App Group/Keychain. The extension
 must stay under the ~50 MB memory limit: no React Native, no Skia, no large geo
-databases inside it.
+databases inside it. Before start, a stale tunnel profile is stopped and
+recreated; start/stop operations are bounded by timeouts. `tunnel.log` and
+`xray.log` are written to the shared App Group container.
 
 ### Desktop
 
@@ -130,8 +154,10 @@ are always cancellable; a stale start result must not overwrite a newer state.
 - `native/versions.json` pins libXray/Xray/Go/NDK versions.
 - Bump the core deliberately, then run the staging connection matrix:
   VLESS Reality, VLESS WS/TLS, gRPC, XHTTP, Trojan, Shadowsocks, full config.
-- Keep subscription fixtures in `packages/core/test/fixtures` and add one for
-  every new Remnawave header/format.
-- Release cadence: app every 2 weeks, native core monthly, toolchains quarterly.
+- Keep parser/config regression fixtures in `packages/core/test` and add one
+  for every new Remnawave header/format.
+- Current test suites: `packages/core/src/xray/config.test.ts`,
+  `packages/core/test/outbound.test.ts`, `packages/core/test/subscription.test.ts`,
+  `packages/vpn/test/expo.test.ts`.
 - Remote config endpoint (next phase) controls minimum version, support URL and
   feature flags without a store release.

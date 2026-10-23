@@ -8,26 +8,31 @@ What it does:
 
 1. Installs Java 21, Android SDK/NDK r29, pnpm and restores the libXray AAR cache.
 2. Runs `expo prebuild --platform android`.
-3. Builds a Debug APK for manual runs / Release APK for tags (arm64-v8a).
-4. Uploads `RageNet-<version>-android-arm64.apk` and `SHA256SUMS-android.txt`.
+3. Builds `assembleRelease` by default (arm64-v8a only).
+4. Collects `RageNet-<version>-android-arm64-release.apk` and publishes it to the
+   `app-v<version>` GitHub Release.
 
-The first workflow build is arm64-only to keep the runner stable and fast.
-A universal arm64 + armeabi-v7a APK is the next step; x86/x86_64 are emulator-only
-and can be added as separate artifacts.
+The Release APK is self-signed with the generated debug keystore because a
+production keystore is not configured yet. It is installable, includes
+`assets/index.android.bundle`, and does **not** need Metro.
 
-The release build uses the generated debug keystore because no production
-keystore is configured yet. The APK is **installable** and, in this first
-workflow, contains the `arm64-v8a` ABI only. This covers modern Android phones
-and keeps the GitHub runner below its memory limit.
+R8/minify and resource shrinking are explicitly disabled in `app.json` via
+`expo-build-properties`. Do not re-enable them without a full device smoke test:
+the first release with R8 stripped native modules and crashed during startup.
 
 Install for testing:
 
 ```bash
-adb install -r RageNet-<version>-android-arm64.apk
+adb install -r RageNet-<version>-android-arm64-release.apk
+adb logcat -c
+adb shell am start -W -n net.ragenet.vpn/.MainActivity
 ```
 
-For a production/self-signed release, add a keystore to GitHub Secrets and a
-`release` signingConfig; do not use the debug key for public distribution.
+Verify the JS bundle inside the APK:
+
+```bash
+unzip -l RageNet-<version>-android-arm64-release.apk | grep index.android.bundle
+```
 
 ## iOS unsigned IPA
 
@@ -39,57 +44,67 @@ What it does:
 2. Runs `pod install`.
 3. Builds with `CODE_SIGNING_ALLOWED=NO`, `CODE_SIGNING_REQUIRED=NO`.
 4. Packages `Payload/RageNet.app` into
-   `RageNet-<version>-ios-unsigned.ipa`.
+   `RageNet-<version>-ios-Release-unsigned.ipa`.
 
-The workflow does **not** need an Apple Developer account to produce the
-unsigned IPA. The IPA contains the main app and the Packet Tunnel extension
-(`Payload/RageNet.app/PlugIns/tunnel.appex`) but has no signature and cannot be
-installed as-is.
+The workflow does not need an Apple Developer account. The IPA contains the
+main app and the Packet Tunnel extension (`PlugIns/tunnel.appex`) but has no
+signature and cannot start the VPN as-is.
 
-> **Use the `Release` IPA for installing.** A `Debug` IPA has no embedded
-> `main.jsbundle` and expects a running Metro packager; installing it without
-> Metro produces `No script URL provided`. The Release IPA contains
-> `Payload/RageNet.app/main.jsbundle`. Sign it with your `.p12` + `.mobileprovision` in a signing tool
-> that also signs embedded app extensions (Sideloadly, ESign/GBox with extension
-> support, or Xcode).
+Use the **Release** IPA for signing. A Debug IPA has no embedded
+`main.jsbundle` and expects Metro; installing it without Metro produces
+`No script URL provided`.
 
-**Important:** the VPN will not work unless both the app and the extension are
-signed with paid Apple Developer Program profiles containing:
+The VPN will not work unless both the app and the extension are signed with
+paid Apple Developer Program profiles containing:
 
 - `com.apple.developer.networking.networkextension` =
   `packet-tunnel-provider`;
 - explicit App IDs `net.ragenet.vpn` and `net.ragenet.vpn.tunnel`.
 
-A free Apple ID cannot enable Network Extensions. A single wildcard profile
-cannot sign a Network Extension. If your signing tool only applies one profile,
-the embedded `tunnel.appex` will remain unsigned and iOS will refuse to start
-the tunnel. See [`IOS_SIGNING.md`](IOS_SIGNING.md) for the full checklist, or use the
-[`Sign iOS IPA`](SIGNED_IOS.md) GitHub Actions workflow with two profiles.
+A free Apple ID cannot enable Network Extensions. A wildcard profile cannot
+sign a Network Extension. See [`IOS_SIGNING.md`](IOS_SIGNING.md) or the
+[`Sign iOS IPA`](SIGNED_IOS.md) workflow.
+
+## Desktop
+
+Workflow: `.github/workflows/build-desktop.yml`
+
+- Windows: NSIS EXE and MSI.
+- macOS: universal DMG.
+- Linux: AppImage, deb and rpm.
+
+The desktop build is currently UI-only: it does not include an Xray sidecar or
+privileged TUN helper. System proxy/TUN are future work.
 
 ## GitHub Releases
 
-Every successful platform build publishes its files to a GitHub Release tagged
+Every successful platform build publishes files to a GitHub Release tagged
 `app-v<version>`:
 
-- manual `workflow_dispatch` runs create/update a **prerelease**;
-- `app-v*` tag builds update the same tag as a **stable release**;
+- manual `workflow_dispatch` runs create/update the release;
+- `app-v*` tag builds update the same tag;
 - assets are uploaded with `--clobber`, so rebuilding the same version replaces
-  the previous files instead of failing.
+  files instead of failing.
 
-The `Sign iOS IPA` workflow adds `RageNet-<version>-ios-signed.ipa` to the same
-release.
+Expected complete release assets:
+
+- `RageNet-<version>-android-arm64-release.apk`
+- `RageNet-<version>-ios-Release-unsigned.ipa`
+- `RageNet_<version>_x64-setup.exe`
+- `RageNet_<version>_x64_en-US.msi`
+- `RageNet_<version>_universal.dmg`
+- `RageNet_<version>_amd64.AppImage`
+- `RageNet_<version>_amd64.deb`
+- `RageNet-<version>-1.x86_64.rpm`
 
 ## Run a build
 
 ### Manual
 
-GitHub → Actions → **Build Android** or **Build iOS** → **Run workflow**.
+GitHub → Actions → **Build Android**, **Build iOS** or **Build desktop** →
+**Run workflow**.
 
-Artifacts appear at the bottom of the run:
-
-- `ragenet-android-apk`
-- `ragenet-ios-ipa-release` (installable; use this for signing)
-- `ragenet-ios-ipa-debug` (requires Metro)
+Artifacts are attached to the run and to the GitHub Release.
 
 ### Tag release
 
@@ -98,25 +113,19 @@ git tag app-v0.3.19
 git push origin app-v0.3.19
 ```
 
-Both workflows also run on `app-v*` tags. Artifacts are available on each run
-page; a combined GitHub Release job can be added after both pipelines are green.
+Both mobile workflows and the desktop workflow also run on `app-v*` tags.
 
-## Desktop
+## Before publishing
 
-Workflow: `.github/workflows/build-desktop.yml`
+- Ensure `pnpm version:check`, `format:check`, `typecheck`, `test` and
+  `build:web` are green.
+- Verify the Android APK contains `assets/index.android.bundle`.
+- Verify the iOS IPA contains `main.jsbundle` and `PlugIns/tunnel.appex`.
+- Update `CHANGELOG.md` and release notes.
+- Confirm the release has all eight assets.
+- For iOS, confirm the signing profile includes the Network Extension
+  entitlement.
 
-- Windows: NSIS EXE.
-- macOS: universal DMG.
-- Linux: AppImage/deb.
-
-It requires Rust on the runner. The local environment currently has no Rust, so
-this workflow has not been executed yet.
-
-## Before the first run
-
-- Push the `ragenet-app` repository to GitHub.
-- Ensure Actions are enabled.
-- The unsigned builds need no secrets.
-- For a signed Android release, add the keystore secrets described in
-  `docs/SIGNING.md`.
-- For a signed iOS/TestFlight build, add Apple certificate/profile secrets.
+Unsigned builds need no secrets. For a signed Android release, add the
+keystore secrets from `docs/SIGNING.md`. For a signed iOS/TestFlight build, add
+the Apple certificate and two provisioning profiles.

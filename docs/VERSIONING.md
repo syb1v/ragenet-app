@@ -30,7 +30,7 @@ Every code change gets an entry in `CHANGELOG.md` using
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/):
 
 ```md
-## [0.1.2] - 2026-10-24
+## [0.3.19] - 2026-10-23
 
 ### Fixed
 
@@ -44,9 +44,9 @@ Documentation-only changes may omit the changelog entry.
 
 | Tag                 | Meaning                    |
 | ------------------- | -------------------------- |
-| `app-v0.1.1`        | client release             |
+| `app-vX.Y.Z`        | client release             |
 | `native-v26.10.21`  | libXray/Xray native assets |
-| `app-v0.2.0-beta.1` | pre-release                |
+| `app-vX.Y.Z-beta.N` | optional pre-release       |
 
 Tags are created only after all checks pass and artifacts are uploaded.
 
@@ -67,14 +67,12 @@ VLESS Reality, VLESS WS/TLS, gRPC, XHTTP, Trojan, Shadowsocks, full config.
 
 ## Build numbers
 
-- Android `versionCode`: monotonically increasing, derived from CI run number or
-  a dedicated counter.
-- iOS `CFBundleVersion`: monotonically increasing build number, separate from
-  the marketing version.
+- Android `versionCode`: monotonically increasing, stored in
+  `apps/mobile/app.json` (`android.versionCode`). Current: 22.
+- iOS `CFBundleVersion`: monotonically increasing, stored in
+  `apps/mobile/app.json` (`ios.buildNumber`). Current: 22.
 - Desktop installers use the app version; updater manifests use SemVer.
-
-These values are not in the repository yet; add them when the native projects
-are generated.
+- Bump both build numbers for every release, even a PATCH release.
 
 ## Release checklist
 
@@ -85,9 +83,9 @@ are generated.
 5. `pnpm build:web`
 6. Update `CHANGELOG.md`
 7. Run native build workflows
-8. Verify artifacts and checksums
+8. Verify artifacts (APK bundle, IPA extension, desktop installers)
 9. Create tag `app-vX.Y.Z`
-10. Publish GitHub Release with notes and `SHA256SUMS.txt`
+10. Publish GitHub Release with all platform assets and release notes
 11. Update `docs/ROADMAP.md` if a milestone changed
 12. For iOS: confirm signing profile includes Network Extension entitlement
 

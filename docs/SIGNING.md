@@ -5,26 +5,30 @@
 An APK must be signed to install. There is no usable "unsigned APK" for end
 users.
 
-Phase 0 builds:
+Current CI builds a Release APK:
 
 ```bash
 cd apps/mobile
 npx expo prebuild --platform android --no-install
 cd android
-./gradlew assembleDebug
-# app/build/outputs/apk/debug/app-debug.apk
+./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
+# app/build/outputs/apk/release/app-release.apk
 ```
 
-Debug builds are signed with the debug keystore and are installable for
-internal testing. For a release:
+The GitHub release asset is
+`RageNet-<version>-android-arm64-release.apk`. It is signed with the generated
+debug keystore because a production keystore is not configured yet. It is
+installable for testing and contains the embedded JS bundle.
+
+For production:
 
 1. Create a keystore once and store it in GitHub Actions secrets.
 2. Add a `release` signing config to `android/app/build.gradle`.
-3. Build `assembleRelease` and upload the universal APK + `mapping.txt`.
-4. Keep the keystore backed up; losing it prevents updates for existing users.
+3. Build `assembleRelease` and keep the keystore backed up; losing it prevents
+   updates for existing users.
+4. Add `mapping.txt` only if R8 is enabled later; currently minify is disabled.
 
-AAB can be added later for Google Play; the requested universal APK is a
-sideload artifact.
+AAB can be added later for Google Play; the current artifact is a sideload APK.
 
 ## iOS
 
@@ -51,8 +55,9 @@ cp -R build/Build/Products/Release-iphoneos/RageNet.app Payload/
 zip -r RageNet-unsigned.ipa Payload
 ```
 
-This IPA is for people who will sign it themselves. It will not start a VPN
-extension as-is.
+CI publishes the same product as
+`RageNet-<version>-ios-Release-unsigned.ipa`. This IPA is for people who will
+sign it themselves. It will not start a VPN extension as-is.
 
 ### Why the VPN does not work without a paid account
 
@@ -96,17 +101,17 @@ checksums and instructions for verifying the download.
 
 ## GitHub Actions secrets
 
-| Secret                           | Used for                  |
-| -------------------------------- | ------------------------- |
-| `ANDROID_KEYSTORE_BASE64`        | release APK signing       |
-| `ANDROID_KEYSTORE_PASSWORD`      | release APK signing       |
-| `ANDROID_KEY_ALIAS`              | release APK signing       |
-| `ANDROID_KEY_PASSWORD`           | release APK signing       |
-| `APPLE_CERTIFICATE_BASE64`       | signed iOS/macOS builds   |
-| `APPLE_CERTIFICATE_PASSWORD`     | signed iOS/macOS builds   |
-| `APPLE_PROVISION_PROFILE_BASE64` | Network Extension profile |
-| `APPLE_TEAM_ID`                  | signing                   |
-| `TAURI_SIGNING_PRIVATE_KEY`      | desktop updater           |
+| Secret                      | Used for                  |
+| --------------------------- | ------------------------- |
+| `ANDROID_KEYSTORE_BASE64`   | release APK signing       |
+| `ANDROID_KEYSTORE_PASSWORD` | release APK signing       |
+| `ANDROID_KEY_ALIAS`         | release APK signing       |
+| `ANDROID_KEY_PASSWORD`      | release APK signing       |
+| `IOS_CERTIFICATE_P12`       | signed iOS IPA            |
+| `IOS_CERTIFICATE_PASSWORD`  | signed iOS IPA            |
+| `IOS_MAIN_PROVISION`        | main app profile          |
+| `IOS_TUNNEL_PROVISION`      | Network Extension profile |
+| `TAURI_SIGNING_PRIVATE_KEY` | desktop updater           |
 
 Never put these values in the repository. Use protected GitHub Environments and
 require approval for release jobs.

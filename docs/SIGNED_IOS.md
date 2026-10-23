@@ -19,7 +19,7 @@ Both profiles must contain:
 com.apple.developer.networking.networkextension = [packet-tunnel-provider]
 ```
 
-No App Group is required by RageNet 0.1.17+.
+The tunnel itself does not require an App Group. The App Group `group.net.ragenet.vpn` is optional and is used only for sharing `tunnel.log`/`xray.log` with the app; add it to both profiles if you want the Logs screen to read extension logs.
 
 ## Create the tunnel profile
 
