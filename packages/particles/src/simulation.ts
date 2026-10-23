@@ -76,6 +76,9 @@ export class ParticleSphereSimulation {
   private burstScale = 1;
   private vibrationLevel = 0;
   private vibrationTarget = 0;
+  /** Public blended ping animation level, read by the renderer. */
+  probeLevel = 0;
+  private probeTarget = 0;
 
   mode: ParticleMode = 'idle';
   charge = 0;
@@ -209,6 +212,11 @@ export class ParticleSphereSimulation {
     this.vibrationTarget = clamp(value, 0, 1.2);
   }
 
+  /** Smooth scanning animation while locations are being pinged. */
+  setProbeActive(active: boolean): void {
+    this.probeTarget = active ? 1 : 0;
+  }
+
   /**
    * Release the gathered cloud with a short radial impulse. The normal spring
    * then produces a damped overshoot instead of a linear scale animation.
@@ -263,6 +271,7 @@ export class ParticleSphereSimulation {
 
     this.chargeLevel += (this.charge - this.chargeLevel) * Math.min(1, step * 8);
     this.vibrationLevel += (this.vibrationTarget - this.vibrationLevel) * Math.min(1, step * 4);
+    this.probeLevel += (this.probeTarget - this.probeLevel) * Math.min(1, step * 2.2);
 
     if (this.reactionActive) {
       this.reactionTime += step;
@@ -279,7 +288,8 @@ export class ParticleSphereSimulation {
     // This keeps the sphere from twitching when the connection state changes.
     const targetSpin =
       (this.mode === 'connecting' ? 0.32 : this.mode === 'connected' ? 0.16 : 0.07) +
-      this.reaction * 0.2;
+      this.reaction * 0.2 +
+      this.probeLevel * 0.1;
     this.autoSpin += (targetSpin - this.autoSpin) * Math.min(1, step * 4);
     this.rotationY += (this.autoSpin + this.spinY) * step;
     this.rotationX += this.spinX * step;
@@ -512,6 +522,14 @@ export class ParticleSphereSimulation {
       waveBoost = Math.min(1.2, waveBoost);
 
       const depth = clamp((z + 1) / 2, 0, 1);
+      let probeShimmer = 0;
+      if (this.probeLevel > 0.001) {
+        const scan = Math.sin(this.time * 1.8 + depth * 5.2 + this.phase[index] * 0.45);
+        const breathe = 1 + scan * 0.024 * this.probeLevel;
+        screenX = center + (screenX - center) * breathe;
+        screenY = center + (screenY - center) * breathe;
+        probeShimmer = this.probeLevel * (0.5 + 0.5 * scan);
+      }
 
       if (this.reaction > 0.001) {
         const dx = screenX - center;
@@ -553,7 +571,7 @@ export class ParticleSphereSimulation {
         (0.5 + depth * 1.25 + this.chargeLevel * 0.08) *
         (size / 300) *
         this.pointSize[index] *
-        (1 + this.reaction * 0.18 + this.burstGlow * 0.2);
+        (1 + this.reaction * 0.18 + this.burstGlow * 0.2 + probeShimmer * 0.16);
       projected[output + 3] = Math.min(
         1,
         0.38 +
@@ -561,6 +579,7 @@ export class ParticleSphereSimulation {
           this.reaction * 0.08 +
           this.chargeLevel * 0.08 +
           waveBoost * 0.03 +
+          probeShimmer * 0.08 +
           this.burstGlow * 0.16,
       );
     }

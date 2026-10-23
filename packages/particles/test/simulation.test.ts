@@ -56,6 +56,17 @@ describe('ParticleSphereSimulation', () => {
     expect(Array.from(settled)).toEqual(Array.from(base));
   });
 
+  it('fades the ping scan in and out smoothly', () => {
+    const simulation = new ParticleSphereSimulation({ count: 96, seed: 51 });
+    simulation.setProbeActive(true);
+    for (let i = 0; i < 180; i += 1) simulation.update(1 / 60);
+    expect(simulation.probeLevel).toBeGreaterThan(0.8);
+
+    simulation.setProbeActive(false);
+    for (let i = 0; i < 180; i += 1) simulation.update(1 / 60);
+    expect(simulation.probeLevel).toBeLessThan(0.05);
+  });
+
   it('stays finite under charge, impulse and drag', () => {
     const simulation = new ParticleSphereSimulation({ count: 128, seed: 11 });
     simulation.setPointer(0.8, 0.2);

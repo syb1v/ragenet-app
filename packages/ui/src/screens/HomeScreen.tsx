@@ -49,6 +49,7 @@ export function HomeScreen({ desktop = false }: HomeScreenProps) {
   const isRefreshing = useAppStore((state) => state.isRefreshing);
   const openSubscriptionMenu = useAppStore((state) => state.openSubscriptionMenu);
   const pingSelectedServer = useAppStore((state) => state.pingSelectedServer);
+  const cancelPing = useAppStore((state) => state.cancelPing);
   const isPinging = useAppStore((state) => state.isPinging);
 
   const navigate = useAppStore((state) => state.navigate);
@@ -202,18 +203,25 @@ export function HomeScreen({ desktop = false }: HomeScreenProps) {
       >
         <View style={desktop ? styles.desktopRow : styles.mobileRow}>
           <View style={[styles.coreArea, desktop && styles.desktopCore]}>
-            <ParticleSphere state={vpnStatus.state} onToggle={toggleConnection} />
+            <ParticleSphere
+              state={vpnStatus.state}
+              onToggle={toggleConnection}
+              onPressStart={cancelPing}
+              pinging={isPinging}
+            />
             <Animated.View style={[styles.statusPill, statusPillAnimatedStyle]}>
               <Animated.View style={[styles.statusDot, statusDotAnimatedStyle]} />
               <View style={styles.statusLabelSlot}>
                 <Animated.Text
                   accessibilityLiveRegion="polite"
+                  numberOfLines={1}
                   style={[styles.statusText, statusTextAnimatedStyle, fromLabelAnimatedStyle]}
                 >
                   {STATUS_LABEL[statusLabels.from] ?? 'Отключено'}
                 </Animated.Text>
                 <Animated.Text
                   accessibilityLiveRegion="polite"
+                  numberOfLines={1}
                   style={[styles.statusText, statusTextAnimatedStyle, toLabelAnimatedStyle]}
                 >
                   {STATUS_LABEL[statusLabels.to] ?? 'Отключено'}
@@ -408,7 +416,7 @@ const styles = StyleSheet.create({
   statusLabelSlot: {
     height: 15,
     justifyContent: 'center',
-    width: 100,
+    width: 118,
   },
   statusText: {
     color: colors.text2,

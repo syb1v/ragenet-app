@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.14] - 2026-10-23
+
+### Changed
+
+- Locations are now pinged as independent jobs with up to four probes in
+  flight; each row is updated as soon as that location responds or times out.
+- Tapping the sphere cancels an active ping immediately and unblocks
+  connect/disconnect without waiting for the native probe to finish.
+- The sphere now shows a smooth ping scan with a cyan-violet shimmer, a
+  slightly faster spin and a soft glow while locations are being measured.
+
+### Fixed
+
+- Late results from a cancelled ping are ignored instead of overwriting the
+  UI.
+
 ## [0.3.13] - 2026-10-22
 
 ### Fixed

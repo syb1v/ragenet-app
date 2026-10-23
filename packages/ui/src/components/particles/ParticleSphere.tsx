@@ -15,7 +15,9 @@ import { ParticleRenderer } from './ParticleRenderer';
 interface ParticleSphereProps {
   state: VpnState;
   onToggle: () => void;
+  onPressStart?: () => void;
   onChargeProgress?: (progress: number | null) => void;
+  pinging?: boolean;
   size?: number;
 }
 
@@ -32,7 +34,9 @@ const BURST_PEAK_MS = 560;
 export function ParticleSphere({
   state,
   onToggle,
+  onPressStart,
   onChargeProgress,
+  pinging = false,
   size: explicitSize,
 }: ParticleSphereProps) {
   const { width } = useWindowDimensions();
@@ -79,6 +83,10 @@ export function ParticleSphere({
   useEffect(() => {
     simulation.setMode(mode);
   }, [mode, simulation]);
+
+  useEffect(() => {
+    simulation.setProbeActive(pinging);
+  }, [pinging, simulation]);
 
   const clearTimers = () => {
     if (holdTimer.current) {
@@ -224,6 +232,7 @@ export function ParticleSphere({
     const { locationX, locationY } = event.nativeEvent;
     if (!isInside(locationX, locationY)) return;
 
+    onPressStart?.();
     clearTimers();
     pressing.current = true;
     triggeredByHold.current = false;

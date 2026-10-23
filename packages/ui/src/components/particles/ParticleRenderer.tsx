@@ -8,6 +8,20 @@ interface ParticleRendererProps {
   mode: ParticleMode;
 }
 
+const PROBE_COLOR: [number, number, number] = [104, 211, 255];
+
+function mixColor(
+  base: [number, number, number],
+  target: [number, number, number],
+  amount: number,
+): [number, number, number] {
+  return [
+    base[0] + (target[0] - base[0]) * amount,
+    base[1] + (target[1] - base[1]) * amount,
+    base[2] + (target[2] - base[2]) * amount,
+  ];
+}
+
 function palette(mode: ParticleMode, charge: number): [number, number, number] {
   if (mode === 'connected') return [196, 202, 240];
   if (charge > 0.01) return [178, 157, 255];
@@ -59,12 +73,13 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
       const blend = Math.min(1, dt * 1.8);
       const reaction = simulation.reaction;
       const charge = simulation.charge;
+      const probe = simulation.probeLevel;
       const targetGlow =
         (modeRef.current === 'connected' ? 0.25 : modeRef.current === 'connecting' ? 0.16 : 0.06) +
         charge * 0.16 +
         simulation.burstGlow * 0.2 +
         reaction * 0.08;
-      glowRef.current += (targetGlow - glowRef.current) * blend;
+      glowRef.current += (targetGlow + probe * 0.14 - glowRef.current) * blend;
 
       const glow = context.createRadialGradient(center, center, 0, center, center, size * 0.48);
       glow.addColorStop(0, `rgba(155, 139, 255, ${glowRef.current})`);
@@ -74,7 +89,7 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
       context.fillRect(0, 0, size, size);
 
       context.globalCompositeOperation = 'lighter';
-      const targetColor = palette(modeRef.current, charge);
+      const targetColor = mixColor(palette(modeRef.current, charge), PROBE_COLOR, probe * 0.42);
       const color = colorRef.current;
       for (let channel = 0; channel < 3; channel += 1) {
         color[channel] += (targetColor[channel] - color[channel]) * blend;

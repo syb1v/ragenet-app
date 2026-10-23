@@ -9,6 +9,20 @@ interface ParticleRendererProps {
   mode: ParticleMode;
 }
 
+const PROBE_COLOR: [number, number, number] = [104, 211, 255];
+
+function mixColor(
+  base: [number, number, number],
+  target: [number, number, number],
+  amount: number,
+): [number, number, number] {
+  return [
+    base[0] + (target[0] - base[0]) * amount,
+    base[1] + (target[1] - base[1]) * amount,
+    base[2] + (target[2] - base[2]) * amount,
+  ];
+}
+
 function colorForMode(mode: ParticleMode, charge: number): [number, number, number] {
   if (mode === 'connected') return [196, 202, 240];
   if (charge > 0.01) return [178, 157, 255];
@@ -63,7 +77,12 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
         }
         setPaths([buckets[0].join(''), buckets[1].join(''), buckets[2].join('')]);
 
-        const target = colorForMode(modeRef.current, simulation.charge);
+        const probe = simulation.probeLevel;
+        const target = mixColor(
+          colorForMode(modeRef.current, simulation.charge),
+          PROBE_COLOR,
+          probe * 0.42,
+        );
         const current = colorRef.current;
         const blend = Math.min(1, dt * 1.8);
         for (let channel = 0; channel < 3; channel += 1) {
@@ -76,10 +95,11 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
             Math.round(current[1] + boost),
           )}, ${Math.min(255, Math.round(current[2] + boost))})`,
         );
-        setStrokeWidth(1.35 + simulation.charge * 0.35 + simulation.reaction * 0.15);
+        setStrokeWidth(1.35 + simulation.charge * 0.35 + simulation.reaction * 0.15 + probe * 0.24);
         const targetGlow =
           (modeRef.current === 'connected' ? 0.24 : 0.03 + simulation.charge * 0.18) +
-          simulation.burstGlow * 0.16;
+          simulation.burstGlow * 0.16 +
+          probe * 0.14;
         glowRef.current += (targetGlow - glowRef.current) * Math.min(1, dt * 1.8);
         setGlow(glowRef.current);
         const wave = simulation.getWave();

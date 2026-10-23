@@ -54,6 +54,7 @@ interface AppState {
   isHydrated: boolean;
 
   hydrate: () => Promise<void>;
+  cancelPing: () => void;
   addSubscription: (input: string) => Promise<void>;
   refreshSubscription: () => Promise<void>;
   pingServers: () => Promise<void>;
@@ -123,13 +124,14 @@ export const DEVICE = {
   os: platformName(),
   osVersion: Platform.Version?.toString() ?? 'unknown',
   model: deviceModel(),
-  appVersion: Constants.expoConfig?.version ?? '0.3.13',
+  appVersion: Constants.expoConfig?.version ?? '0.3.14',
 };
 
 let vpnBridge: VpnBridge | null = null;
 let vpnUnsubscribe: (() => void) | null = null;
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 let suppressVpnStatus = false;
+let pingRunId = 0;
 
 function getVpnBridge(): VpnBridge {
   if (!vpnBridge) vpnBridge = createVpnBridge();
@@ -159,7 +161,7 @@ async function waitForVpnState(
 
 const LATENCY_PROBE_URL = 'https://www.gstatic.com/generate_204';
 const LATENCY_TIMEOUT_MS = 4000;
-const PING_BATCH_SIZE = 5;
+const PING_PROBE_CONCURRENCY = 4;
 const PING_BATCH_TIMEOUT_SECONDS = 5;
 
 function latencyProbeUrl(): string {
@@ -302,6 +304,7 @@ async function pingTargets(
   targets: ServerNode[],
 ): Promise<void> {
   if (targets.length === 0 || get().isPinging || get().isSwitching) return;
+  const runId = ++pingRunId;
   const bridge = getVpnBridge();
   const throughTunnel = get().vpnStatus.state === 'connected';
   const selectedId = get().selectedServerId ?? get().servers[0]?.id ?? null;
@@ -315,7 +318,7 @@ async function pingTargets(
   });
 
   const pingInterface = bridge.getPingInterface?.() ?? null;
-  const batchItems = targets
+  const jobs = targets
     .map((server) => ({ server, config: buildPingBatchConfig(server) }))
     .filter((item): item is { server: ServerNode; config: PingBatchConfig } => item.config != null)
     .map((item) => ({
@@ -325,49 +328,51 @@ async function pingTargets(
         xrayJson: withPingInterface(item.config.xrayJson, pingInterface),
       },
     }));
-  let usedBatch = false;
-  let batchComplete = true;
+  let usedNative = false;
 
   try {
-    if (bridge.pingBatch && batchItems.length > 0) {
-      try {
-        for (let offset = 0; offset < batchItems.length; offset += PING_BATCH_SIZE) {
-          const group = batchItems.slice(offset, offset + PING_BATCH_SIZE);
-          const results = await bridge.pingBatch(
-            group.map((item) => item.config),
-            LATENCY_PROBE_URL,
-            PING_BATCH_TIMEOUT_SECONDS,
-          );
-          if (!results || results.length !== group.length) {
-            batchComplete = false;
-            break;
-          }
-          usedBatch = true;
-          results.forEach((result, index) => {
-            const item = group[index];
-            if (!item || !result.success || !Number.isFinite(result.delay) || result.delay <= 0) {
-              return;
+    if (bridge.pingBatch && jobs.length > 0) {
+      usedNative = true;
+      let cursor = 0;
+      const worker = async () => {
+        while (true) {
+          if (runId !== pingRunId) return;
+          const index = cursor;
+          cursor += 1;
+          if (index >= jobs.length) return;
+          const job = jobs[index];
+          try {
+            const results = await bridge.pingBatch!(
+              [job.config],
+              LATENCY_PROBE_URL,
+              PING_BATCH_TIMEOUT_SECONDS,
+            );
+            if (runId !== pingRunId) return;
+            const result = results?.[0];
+            if (!result?.success || !Number.isFinite(result.delay) || result.delay <= 0) {
+              continue;
             }
             set((state) => ({
               servers: state.servers.map((entry) =>
-                entry.id === item.server.id ? { ...entry, latencyMs: result.delay } : entry,
+                entry.id === job.server.id ? { ...entry, latencyMs: result.delay } : entry,
               ),
             }));
-          });
+          } catch {
+            // Keep this row pending/empty; another location must not block it.
+          }
         }
-      } catch {
-        batchComplete = false;
-      }
-    }
-
-    if (!usedBatch || !batchComplete) {
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(PING_PROBE_CONCURRENCY, jobs.length) }, () => worker()),
+      );
+    } else {
       const measured = await Promise.all(
         targets.map(async (server) => {
           const latency =
             throughTunnel && server.id === selectedId
               ? await probeTunnelLatency(bridge)
               : await probeEntryLatency(bridge, server);
-          if (latency != null) {
+          if (runId === pingRunId && latency != null) {
             set((state) => ({
               servers: state.servers.map((entry) =>
                 entry.id === server.id ? { ...entry, latencyMs: latency } : entry,
@@ -377,34 +382,33 @@ async function pingTargets(
           return { ...server, latencyMs: latency ?? undefined };
         }),
       );
-      const nextServers = get().servers.map((server) => {
-        const result = measured.find((entry) => entry.id === server.id);
-        return result ?? server;
-      });
-      set({ servers: nextServers });
-      usedBatch = false;
+      if (runId === pingRunId) {
+        const nextServers = get().servers.map((server) => {
+          const result = measured.find((entry) => entry.id === server.id);
+          return result ?? server;
+        });
+        set({ servers: nextServers });
+      }
     }
 
+    if (runId !== pingRunId) return;
     const subscription = get().subscription;
     const nextServers = get().servers;
     set({
       subscription: subscription ? { ...subscription, servers: nextServers } : null,
     });
   } finally {
-    set({ isPinging: false });
+    if (runId === pingRunId) set({ isPinging: false });
   }
 
+  if (runId !== pingRunId) return;
   const answered = targets.filter((server) => {
     const current = get().servers.find((entry) => entry.id === server.id);
     return current?.latencyMs != null;
   }).length;
   get().addLog(
     `Пинг завершён · ${answered}/${targets.length} локаций · ${
-      usedBatch
-        ? `через прокси, пачки по ${PING_BATCH_SIZE}`
-        : throughTunnel
-          ? 'через туннель'
-          : 'напрямую'
+      usedNative ? 'через прокси, по локациям' : throughTunnel ? 'через туннель' : 'напрямую'
     }`,
   );
 }
@@ -425,6 +429,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   isPinging: false,
   isSwitching: false,
   isHydrated: false,
+
+  cancelPing: () => {
+    pingRunId += 1;
+    set({ isPinging: false });
+  },
 
   hydrate: async () => {
     if (get().isHydrated) return;
@@ -653,13 +662,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   toggleConnection: async () => {
+    get().cancelPing();
     const state = get().vpnStatus.state;
     if (!get().subscription) {
       get().showToast('Сначала добавьте ключ подписки');
       return;
     }
-    if (state === 'connecting' || state === 'disconnecting' || get().isPinging || get().isSwitching)
-      return;
+    if (state === 'connecting' || state === 'disconnecting' || get().isSwitching) return;
 
     const selected =
       get().servers.find((server) => server.id === get().selectedServerId) ?? get().servers[0];
