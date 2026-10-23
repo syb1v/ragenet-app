@@ -85,13 +85,15 @@ describe('subscription parser', () => {
     expect(parsed.servers[3].transport).toBe('ws');
   });
 
-  it('drops loopback separator links from a subscription', () => {
+  it('marks loopback separator links as non-connectable groups', () => {
     const local =
       'ss://YWVzLTI1Ni1nY206cGFzcw==@127.0.0.1:1234#%E2%AC%87%EF%B8%8F%20%D0%A2%D0%BE%D0%BB%D1%8C%D0%BA%D0%BE%20%D0%B5%D1%81%D0%BB%D0%B8%20%D0%BD%D0%B5%20%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D0%B5%D1%82%20VPN';
     const parsed = parseSubscription(`${local}\n${shadowsocks}`);
 
-    expect(parsed.servers).toHaveLength(1);
-    expect(parsed.servers[0].host).toBe('se.example.com');
+    expect(parsed.servers).toHaveLength(2);
+    expect(parsed.servers[0]).toMatchObject({ host: '127.0.0.1', isGroup: true });
+    expect(parsed.servers[1]).toMatchObject({ host: 'se.example.com' });
+    expect(parsed.servers[1].isGroup).toBeUndefined();
   });
 
   it('parses body metadata and plain links', () => {

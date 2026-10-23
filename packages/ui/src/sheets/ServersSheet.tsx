@@ -17,6 +17,8 @@ export function ServersSheet() {
   const pingServers = useAppStore((state) => state.pingServers);
   const isPinging = useAppStore((state) => state.isPinging);
 
+  const connectableServers = servers.filter((server) => !server.isGroup);
+
   const header = (
     <View style={styles.header}>
       <IconButton accessibilityLabel="Закрыть выбор сервера" onPress={closeSheet}>
@@ -36,7 +38,8 @@ export function ServersSheet() {
   return (
     <BottomSheet visible={sheet === 'servers'} onClose={closeSheet} header={header}>
       <Text style={styles.subtitle}>
-        {servers.length} {servers.length === 1 ? 'сервер' : 'серверов'} · нажмите, чтобы выбрать
+        {connectableServers.length} {connectableServers.length === 1 ? 'сервер' : 'серверов'} ·
+        нажмите, чтобы выбрать
       </Text>
       <ScrollView
         contentContainerStyle={styles.list}
@@ -44,6 +47,14 @@ export function ServersSheet() {
         style={styles.scroll}
       >
         {servers.map((server) => {
+          if (server.isGroup) {
+            return (
+              <View key={server.id} style={styles.groupHeader}>
+                <Text style={styles.groupTitle}>{stripFlag(server.name)}</Text>
+              </View>
+            );
+          }
+
           const selected = server.id === selectedServerId;
           const flag = server.flagEmoji ?? flagForCountryCode(server.countryCode);
           const ping = server.latencyMs;
@@ -89,7 +100,7 @@ export function ServersSheet() {
             </Pressable>
           );
         })}
-        {servers.length === 0 ? <Text style={styles.empty}>Нет серверов</Text> : null}
+        {connectableServers.length === 0 ? <Text style={styles.empty}>Нет серверов</Text> : null}
       </ScrollView>
     </BottomSheet>
   );
@@ -119,6 +130,18 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingBottom: 8,
+  },
+  groupHeader: {
+    paddingBottom: 7,
+    paddingHorizontal: 10,
+    paddingTop: 18,
+  },
+  groupTitle: {
+    color: colors.text3,
+    fontFamily: fonts.mono,
+    fontSize: 10.5,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   row: {
     alignItems: 'center',

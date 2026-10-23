@@ -19,7 +19,9 @@ export function DesktopShell({ children, onAddKey }: DesktopShellProps) {
   const selectedServerId = useAppStore((state) => state.selectedServerId);
   const vpnStatus = useAppStore((state) => state.vpnStatus);
 
-  const selected = servers.find((server) => server.id === selectedServerId) ?? servers[0];
+  const selected =
+    servers.find((server) => server.id === selectedServerId && !server.isGroup) ??
+    servers.find((server) => !server.isGroup);
   const serverName = selected ? stripFlag(selected.name) : 'Нет сервера';
   const flag = selected?.flagEmoji ?? flagForCountryCode(selected?.countryCode) ?? '🌐';
 
@@ -81,7 +83,7 @@ export function DesktopShell({ children, onAddKey }: DesktopShellProps) {
           </Pressable>
         </View>
 
-        <Text style={styles.version}>RageNet VPN · 0.3.17</Text>
+        <Text style={styles.version}>RageNet VPN · 0.3.18</Text>
       </View>
 
       <View style={styles.content}>{children}</View>

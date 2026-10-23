@@ -27,6 +27,8 @@ export interface ServerNode {
   latencyMs?: number;
   /** Full Xray config when the subscription returned a complete config. */
   fullConfig?: string;
+  /** A non-connectable separator/header emitted by the subscription. */
+  isGroup?: boolean;
 }
 
 export interface SubscriptionMeta {

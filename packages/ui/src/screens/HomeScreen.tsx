@@ -156,7 +156,9 @@ export function HomeScreen({ desktop = false }: HomeScreenProps) {
   if (!subscription) return null;
 
   const selectedServer =
-    servers.find((server) => server.id === selectedServerId) ?? servers[0] ?? null;
+    servers.find((server) => server.id === selectedServerId && !server.isGroup) ??
+    servers.find((server) => !server.isGroup) ??
+    null;
   const total = subscription.meta.totalBytes;
   const used = (subscription.meta.downloadBytes ?? 0) + (subscription.meta.uploadBytes ?? 0);
   const supportUrl = subscription.meta.supportUrl ?? TELEGRAM_SUPPORT_URL;

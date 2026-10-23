@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.18] - 2026-10-23
+
+### Changed
+
+- Loopback subscription separator links are kept as visual group headers
+  instead of being removed. A feed with two separators now shows all 26 rows
+  while still exposing exactly 24 connectable servers.
+- Group rows are never selectable, pingable or usable as a proxy fallback.
+
 ## [0.3.17] - 2026-10-23
 
 ### Fixed

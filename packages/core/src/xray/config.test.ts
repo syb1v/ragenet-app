@@ -159,6 +159,21 @@ describe('buildXrayConfig', () => {
     expect(outbound.streamSettings?.xhttpSettings?.extra).toEqual(extra);
   });
 
+  it('never selects a group separator as a proxy', () => {
+    const group: ServerNode = {
+      ...server,
+      id: 'group',
+      name: 'Main locations',
+      host: '127.0.0.1',
+      isGroup: true,
+      rawLink: '',
+    };
+    const config = buildXrayConfig([group, server], { selectedServerId: group.id });
+
+    expect(config.outbounds[0]).toMatchObject({ tag: server.id });
+    expect(buildPingBatchConfig(group)).toBeNull();
+  });
+
   it('builds an isolated pingBatch config and target tag', () => {
     const ping = buildPingBatchConfig(server);
     expect(ping?.outboundTag).toBe(server.id);

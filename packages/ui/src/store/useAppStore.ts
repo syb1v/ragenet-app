@@ -124,7 +124,7 @@ export const DEVICE = {
   os: platformName(),
   osVersion: Platform.Version?.toString() ?? 'unknown',
   model: deviceModel(),
-  appVersion: Constants.expoConfig?.version ?? '0.3.17',
+  appVersion: Constants.expoConfig?.version ?? '0.3.18',
 };
 
 let vpnBridge: VpnBridge | null = null;
@@ -303,11 +303,15 @@ async function pingTargets(
   set: (partial: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void,
   targets: ServerNode[],
 ): Promise<void> {
+  targets = targets.filter((server) => !server.isGroup);
   if (targets.length === 0 || get().isPinging || get().isSwitching) return;
   const runId = ++pingRunId;
   const bridge = getVpnBridge();
   const throughTunnel = get().vpnStatus.state === 'connected';
-  const selectedId = get().selectedServerId ?? get().servers[0]?.id ?? null;
+  const selectedId =
+    get().servers.find((server) => server.id === get().selectedServerId && !server.isGroup)?.id ??
+    get().servers.find((server) => !server.isGroup)?.id ??
+    null;
   const targetIds = new Set(targets.map((server) => server.id));
 
   set({
@@ -484,21 +488,26 @@ export const useAppStore = create<AppState>((set, get) => ({
       parsed = parseSubscription(trimmed);
     }
 
-    if (parsed.servers.length === 0) {
+    if (!parsed.servers.some((server) => !server.isGroup)) {
       throw new Error('В подписке не найдено ни одного сервера');
     }
 
     const subscription = subscriptionFromParsed(`sub-${Date.now().toString(36)}`, trimmed, parsed);
+    const firstServer = subscription.servers.find((server) => !server.isGroup) ?? null;
     set({
       subscription,
       servers: subscription.servers,
-      selectedServerId: subscription.servers[0]?.id ?? null,
+      selectedServerId: firstServer?.id ?? null,
       screen: 'home',
       sheet: null,
       vpnStatus: { state: 'disconnected' },
     });
-    persistSession(subscription, subscription.servers[0]?.id ?? null);
-    get().addLog(`Подписка добавлена · ${subscription.servers.length} сервера`);
+    persistSession(subscription, firstServer?.id ?? null);
+    get().addLog(
+      `Подписка добавлена · ${
+        subscription.servers.filter((server) => !server.isGroup).length
+      } сервера`,
+    );
   },
 
   refreshSubscription: async () => {
@@ -511,8 +520,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         const result = await fetchSubscription(subscription.url, { device: DEVICE });
         const updated = subscriptionFromParsed(subscription.id, subscription.url, result.parsed);
         const selectedServerId =
-          updated.servers.find((server) => server.id === get().selectedServerId)?.id ??
-          updated.servers[0]?.id ??
+          updated.servers.find((server) => server.id === get().selectedServerId && !server.isGroup)
+            ?.id ??
+          updated.servers.find((server) => !server.isGroup)?.id ??
           null;
         set({
           subscription: updated,
@@ -537,12 +547,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   pingServers: async () => {
-    await pingTargets(get, set, get().servers);
+    await pingTargets(
+      get,
+      set,
+      get().servers.filter((server) => !server.isGroup),
+    );
   },
 
   pingSelectedServer: async () => {
     const selected =
-      get().servers.find((server) => server.id === get().selectedServerId) ?? get().servers[0];
+      get().servers.find((server) => server.id === get().selectedServerId && !server.isGroup) ??
+      get().servers.find((server) => !server.isGroup);
     if (!selected) return;
     await pingTargets(get, set, [selected]);
   },
@@ -584,7 +599,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   selectServer: (id) => {
-    const server = get().servers.find((entry) => entry.id === id);
+    const server = get().servers.find((entry) => entry.id === id && !entry.isGroup);
     if (!server) return;
     if (get().isPinging || get().isSwitching) return;
 
@@ -671,7 +686,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (state === 'connecting' || state === 'disconnecting' || get().isSwitching) return;
 
     const selected =
-      get().servers.find((server) => server.id === get().selectedServerId) ?? get().servers[0];
+      get().servers.find((server) => server.id === get().selectedServerId && !server.isGroup) ??
+      get().servers.find((server) => !server.isGroup);
     if (!selected) {
       get().showToast('Нет доступных серверов');
       return;

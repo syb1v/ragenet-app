@@ -2,7 +2,7 @@
 
 Кроссплатформенный клиент RageNet на React Native (мобильные) и Tauri + React Native Web (десктоп). Ядро — Xray-core через `libXray`, с встроенным TUN-инбаундом.
 
-> **Статус: Phase 1–2, версия 0.3.17.** Android/iOS уже используют реальный Xray-туннель; iOS-подпись и привилегированный desktop-helper остаются отдельными задачами. План и даты — в [docs/ROADMAP.md](docs/ROADMAP.md), версии — в [docs/VERSIONING.md](docs/VERSIONING.md).
+> **Статус: Phase 1–2, версия 0.3.18.** Android/iOS уже используют реальный Xray-туннель; iOS-подпись и привилегированный desktop-helper остаются отдельными задачами. План и даты — в [docs/ROADMAP.md](docs/ROADMAP.md), версии — в [docs/VERSIONING.md](docs/VERSIONING.md).
 
 ## Что уже работает
 

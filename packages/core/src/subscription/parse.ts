@@ -553,9 +553,9 @@ export function parseSubscription(body: string, headers: HeaderMap = {}): Parsed
     if (!trimmed || trimmed.startsWith('#')) continue;
     const node = parseShareLink(trimmed, meta);
     if (!node) continue;
-    // Subscription feeds use loopback entries as visual separators. They are
-    // not connectable from a VPN client and must not appear as locations.
-    if (isLoopbackHost(node.host)) continue;
+    // Subscription feeds use loopback entries as visual separators. Keep them
+    // for the list layout, but never offer them as connectable locations.
+    if (isLoopbackHost(node.host)) node.isGroup = true;
     if (seen.has(node.rawLink)) continue;
     seen.add(node.rawLink);
     servers.push(node);

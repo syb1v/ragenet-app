@@ -98,8 +98,11 @@ export function buildXrayConfig(
   servers: ServerNode[],
   options: BuildXrayConfigOptions,
 ): XrayConfig {
-  const selected = servers.find((server) => server.id === options.selectedServerId) ?? servers[0];
-  if (!selected) throw new Error('No servers in subscription');
+  const selected =
+    servers.find((server) => server.id === options.selectedServerId && !server.isGroup) ??
+    servers.find((server) => !server.isGroup) ??
+    servers[0];
+  if (!selected || selected.isGroup) throw new Error('No servers in subscription');
   if (selected.fullConfig) {
     return sanitizeFullConfig(JSON.parse(selected.fullConfig) as JsonObject, options);
   }
@@ -280,6 +283,7 @@ export interface PingBatchConfig {
  * solely to probe one location through its own proxy.
  */
 export function buildPingBatchConfig(server: ServerNode): PingBatchConfig | null {
+  if (server.isGroup) return null;
   if (server.fullConfig) {
     try {
       const fullConfig = JSON.parse(server.fullConfig) as JsonObject;

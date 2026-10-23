@@ -114,7 +114,9 @@ function normalizeSession(session: PersistedSession): PersistedSession {
     ({ latencyMs: _latencyMs, ...server }) => server,
   );
   const selectedServerId =
-    servers.find((server) => server.id === session.selectedServerId)?.id ?? servers[0]?.id ?? null;
+    servers.find((server) => server.id === session.selectedServerId && !server.isGroup)?.id ??
+    servers.find((server) => !server.isGroup)?.id ??
+    null;
   return {
     subscription: { ...session.subscription, servers },
     selectedServerId,
