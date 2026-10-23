@@ -27,6 +27,7 @@ interface NativeVpnModule {
     listener: (event: { time: number; level: string; message: string }) => void,
   ): { remove(): void };
   getStableDeviceId(): string;
+  getDisplayRefreshRate?(): MaybePromise<number>;
   getPingInterface?(): string | null;
   measureHttpLatency(url: string, timeoutMs: number): Promise<number | null>;
   measureLatency(host: string, port: number, timeoutMs: number): Promise<number | null>;
@@ -93,6 +94,9 @@ export function createVpnBridge(): VpnBridge {
       return () => subscription.remove();
     },
     getStableDeviceId: () => native.getStableDeviceId(),
+    getDisplayRefreshRate: native.getDisplayRefreshRate
+      ? () => Promise.resolve(native.getDisplayRefreshRate!()).then((rate) => Number(rate))
+      : undefined,
     getPingInterface: () => native.getPingInterface?.() ?? null,
     measureHttpLatency: (url, timeoutMs = 4000) => native.measureHttpLatency(url, timeoutMs),
     measureLatency: (host, port, timeoutMs = 4000) => native.measureLatency(host, port, timeoutMs),

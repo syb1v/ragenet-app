@@ -22,8 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- Android uses a smaller particle cloud and 30 fps painting on compact devices;
-  renderer state is batched into one update per frame.
+- Particle rendering follows the display refresh rate (60/90/120 Hz), uses
+  360–600 particles depending on the device, and batches renderer state into
+  one update per frame.
 - Button labels can wrap to two lines and stay centered instead of clipping.
 - Removed the dead "Сервер по типу сети" settings row.
 

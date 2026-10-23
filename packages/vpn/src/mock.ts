@@ -68,6 +68,10 @@ export class MockVpnBridge implements VpnBridge {
     return () => this.listeners.delete(listener);
   }
 
+  async getDisplayRefreshRate(): Promise<number> {
+    return 60;
+  }
+
   getStableDeviceId(): string {
     const storageKey = 'ragenet.device.hwid';
     try {

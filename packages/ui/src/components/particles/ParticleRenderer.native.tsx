@@ -1,6 +1,5 @@
 import type { ParticleMode, ParticleSphereSimulation } from '@ragenet/particles';
 import { useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
 import Svg, { Circle, ClipPath, Defs, G, Path, RadialGradient, Stop } from 'react-native-svg';
 
 interface ParticleRendererProps {
@@ -8,6 +7,7 @@ interface ParticleRendererProps {
   size: number;
   surfaceSize?: number;
   mode: ParticleMode;
+  frameRate?: number;
 }
 
 const PROBE_COLOR: [number, number, number] = [104, 211, 255];
@@ -36,7 +36,13 @@ function colorForMode(mode: ParticleMode, charge: number): [number, number, numb
  * tiny round-capped segment per particle; this keeps the same simulation and
  * a visually equivalent point cloud while avoiding a long CMake step in CI.
  */
-export function ParticleRenderer({ simulation, size, surfaceSize, mode }: ParticleRendererProps) {
+export function ParticleRenderer({
+  simulation,
+  size,
+  surfaceSize,
+  mode,
+  frameRate = 60,
+}: ParticleRendererProps) {
   const surface = surfaceSize ?? size;
   const offset = (surface - size) / 2;
   const modeRef = useRef(mode);
@@ -62,7 +68,7 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
     let animation = 0;
     let last = Date.now();
     let lastPaint = 0;
-    const paintInterval = Platform.OS === 'android' ? 33 : 16;
+    const paintInterval = 1000 / Math.max(60, Math.min(120, frameRate));
 
     const loop = () => {
       const now = Date.now();
@@ -133,7 +139,7 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
 
     animation = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animation);
-  }, [offset, simulation, size]);
+  }, [frameRate, offset, simulation, size]);
 
   return (
     <Svg width={surface} height={surface}>

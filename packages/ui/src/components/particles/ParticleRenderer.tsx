@@ -6,6 +6,7 @@ interface ParticleRendererProps {
   size: number;
   surfaceSize?: number;
   mode: ParticleMode;
+  frameRate?: number;
 }
 
 const PROBE_COLOR: [number, number, number] = [104, 211, 255];

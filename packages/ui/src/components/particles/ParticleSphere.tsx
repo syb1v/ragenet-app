@@ -10,6 +10,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { dragHaptic, particleHaptics, tapHaptic, tickHaptic } from '../../lib/haptics';
+import { useAppStore } from '../../store/useAppStore';
 import { ParticleRenderer } from './ParticleRenderer';
 
 interface ParticleSphereProps {
@@ -40,13 +41,24 @@ export function ParticleSphere({
   size: explicitSize,
 }: ParticleSphereProps) {
   const { width } = useWindowDimensions();
+  const refreshRate = useAppStore((store) => store.refreshRate);
   const size = explicitSize ?? Math.min(width * 0.7, 280);
   const hitRadius = size * 0.46;
   const surfaceSize = size * 2.4;
   const surfaceOffset = (surfaceSize - size) / 2;
-  // The simulation and the SVG renderer both run on the JS thread. Budget
-  // Android devices get a smaller cloud; high-end devices keep the full one.
-  const particleCount = Platform.OS === 'android' ? (width <= 380 ? 320 : 420) : 560;
+  // Keep 60 fps as the floor. High-refresh phones get more particles and a
+  // faster paint budget instead of being permanently capped at 30 fps.
+  const fps = Math.max(60, Math.min(120, refreshRate || 60));
+  const particleCount =
+    Platform.OS === 'android'
+      ? fps >= 120
+        ? 600
+        : fps >= 90
+          ? 520
+          : width <= 380
+            ? 360
+            : 480
+      : 560;
   const simulation = useMemo(
     () => new ParticleSphereSimulation({ count: particleCount }),
     [particleCount],
@@ -404,6 +416,7 @@ export function ParticleSphere({
           size={size}
           surfaceSize={surfaceSize}
           mode={mode}
+          frameRate={fps}
         />
       </View>
     </View>

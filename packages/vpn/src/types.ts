@@ -48,6 +48,8 @@ export interface VpnBridge {
   subscribe(listener: VpnEventListener): () => void;
   /** Stable per-device identifier used as the Remnawave `x-hwid` header. */
   getStableDeviceId?(): string;
+  /** Native display refresh rate (60/90/120), used by the particle renderer. */
+  getDisplayRefreshRate?(): Promise<number>;
   /** IOS physical interface used to keep isolated probes off the utun. */
   getPingInterface?(): string | null;
   /** Real end-to-end HTTPS latency through the current network/tunnel. */

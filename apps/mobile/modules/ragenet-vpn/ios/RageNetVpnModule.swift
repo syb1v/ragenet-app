@@ -83,6 +83,10 @@ public final class RageNetVpnModule: Module {
       return statusPayload()
     }
 
+    Function("getDisplayRefreshRate") { () -> Double in
+      Double(UIScreen.main.maximumFramesPerSecond)
+    }
+
     /// Physical interface used to bypass the active utun while pingBatch runs
     /// in the main app process.
     Function("getPingInterface") { () -> String? in

@@ -52,6 +52,7 @@ interface AppState {
   isPinging: boolean;
   isSwitching: boolean;
   isHydrated: boolean;
+  refreshRate: number;
 
   hydrate: () => Promise<void>;
   cancelPing: () => void;
@@ -433,6 +434,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isPinging: false,
   isSwitching: false,
   isHydrated: false,
+  refreshRate: 60,
 
   cancelPing: () => {
     pingRunId += 1;
@@ -679,6 +681,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       .then((status) => set({ vpnStatus: status }))
       .catch(() => undefined);
     bridge.subscribeLogs?.((entry) => get().addLog(entry.message, entry.level));
+    void bridge
+      .getDisplayRefreshRate?.()
+      .then((rate) => {
+        if (Number.isFinite(rate) && rate >= 60) {
+          set({ refreshRate: Math.min(120, Math.round(rate)) });
+        }
+      })
+      .catch(() => undefined);
   },
 
   toggleConnection: async () => {

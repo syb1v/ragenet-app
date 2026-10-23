@@ -1,11 +1,14 @@
 package net.ragenet.vpn
 
+import android.content.Context
 import android.content.Intent
 import android.net.VpnService
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.ResultReceiver
+import android.view.WindowManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import expo.modules.kotlin.Promise
@@ -126,6 +129,18 @@ class RageNetVpnModule : Module() {
         "since" to status.since,
         "error" to status.error,
       )
+    }
+
+    Function("getDisplayRefreshRate") {
+      val activity = appContext.currentActivity
+      val context = appContext.reactContext
+      val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        activity?.display
+      } else {
+        @Suppress("DEPRECATION")
+        (context?.getSystemService(Context.WINDOW_SERVICE) as? WindowManager)?.defaultDisplay
+      }
+      (display?.refreshRate ?: 60f).toDouble().coerceIn(60.0, 120.0)
     }
 
     /**
