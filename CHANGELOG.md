@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.15] - 2026-10-23
+
+### Fixed
+
+- Android release builds now explicitly disable R8 minification and resource
+  shrinking. The previous Release APK was standalone but could fail on launch
+  after R8 stripped code required by native modules.
+
 ## [0.3.14] - 2026-10-23
 
 ### Changed

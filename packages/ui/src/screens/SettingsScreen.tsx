@@ -72,8 +72,8 @@ export function SettingsScreen({ onClose }: SettingsScreenProps = {}) {
   const showToast = useAppStore((state) => state.showToast);
   const subscription = useAppStore((state) => state.subscription);
   const supportUrl = subscription?.meta.supportUrl ?? TELEGRAM_SUPPORT_URL;
-  const appVersion = '0.3.14';
-  const buildNumber = '17';
+  const appVersion = '0.3.15';
+  const buildNumber = '18';
 
   const openSupport = async () => {
     try {
