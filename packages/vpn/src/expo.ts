@@ -11,11 +11,13 @@ import type {
   VpnLogEventListener,
 } from './types';
 
+type MaybePromise<T> = T | Promise<T>;
+
 interface NativeVpnModule {
-  prepare(): Promise<boolean>;
+  prepare(): MaybePromise<boolean>;
   start(config: string, options: Record<string, unknown>): Promise<boolean>;
   stop(): Promise<boolean>;
-  getStatus(): Promise<{ state: string; since?: number; error?: string }>;
+  getStatus(): MaybePromise<{ state: string; since?: number; error?: string }>;
   addListener(
     event: 'onVpnStatus',
     listener: (event: { state: string; since?: number; error?: string }) => void,
@@ -29,8 +31,8 @@ interface NativeVpnModule {
   measureHttpLatency(url: string, timeoutMs: number): Promise<number | null>;
   measureLatency(host: string, port: number, timeoutMs: number): Promise<number | null>;
   pingBatch(payload: string, timeoutMs: number): Promise<string | null>;
-  getLogs(): Promise<{ time: number; level: string; message: string }[]>;
-  clearLogs(): Promise<boolean>;
+  getLogs(): MaybePromise<{ time: number; level: string; message: string }[]>;
+  clearLogs(): MaybePromise<boolean>;
 }
 
 interface NativeStatusEvent {
@@ -66,7 +68,7 @@ export function createVpnBridge(): VpnBridge {
   }
 
   return {
-    prepare: () => native.prepare(),
+    prepare: () => Promise.resolve(native.prepare()),
     start: (options: StartVpnOptions) =>
       native
         .start(options.config, {
@@ -78,7 +80,10 @@ export function createVpnBridge(): VpnBridge {
         })
         .then(() => undefined),
     stop: () => native.stop().then(() => undefined),
-    getStatus: () => native.getStatus().then(toStatus),
+    // Expo exposes some module functions synchronously on Android (and some
+    // iOS functions are sync too). Normalize both shapes before the UI calls
+    // `.then()`; otherwise a release app crashes during initVpn().
+    getStatus: () => Promise.resolve(native.getStatus()).then(toStatus),
     subscribe: (listener: VpnEventListener) => {
       const subscription = native.addListener('onVpnStatus', (event) => listener(toStatus(event)));
       return () => subscription.remove();
@@ -111,7 +116,7 @@ export function createVpnBridge(): VpnBridge {
       }
     },
     getLogs: () =>
-      native.getLogs().then((entries) =>
+      Promise.resolve(native.getLogs()).then((entries) =>
         entries.map((entry) => ({
           time: entry.time,
           level:
@@ -119,7 +124,7 @@ export function createVpnBridge(): VpnBridge {
           message: entry.message,
         })),
       ),
-    clearLogs: () => native.clearLogs().then(() => undefined),
+    clearLogs: () => Promise.resolve(native.clearLogs()).then(() => undefined),
     subscribeLogs: (listener: VpnLogEventListener) => {
       const subscription = native.addListener('onVpnLog', (event) =>
         listener({

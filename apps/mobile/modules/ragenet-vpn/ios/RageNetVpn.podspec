@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name = 'RageNetVpn'
-  s.version = '0.3.16'
+  s.version = '0.3.17'
   s.summary = 'RageNet native VPN bridge'
   s.license = { :type => 'AGPL-3.0' }
   s.author = { 'RageNet' => 'https://github.com/syb1v/ragenet-app' }

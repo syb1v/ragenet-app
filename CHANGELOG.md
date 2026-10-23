@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.17] - 2026-10-23
+
+### Fixed
+
+- Fixed the Android release startup crash: the JS bridge now normalizes
+  synchronous Expo module results before calling `.then()`. Android exposes
+  `getStatus`, `getLogs` and `clearLogs` synchronously while iOS exposes some
+  of them asynchronously; `initVpn()` previously crashed during the first
+  render with `TypeError: undefined is not a function`.
+- Added a bridge regression test covering synchronous native results.
+
 ## [0.3.16] - 2026-10-23
 
 ### Security
