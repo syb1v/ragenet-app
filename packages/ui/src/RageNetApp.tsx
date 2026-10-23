@@ -9,7 +9,7 @@ import {
 import { colors } from '@ragenet/design';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Linking, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RageNetMark } from './components/Logo';
@@ -64,6 +64,7 @@ export function RageNetApp() {
   const isDesktop = Platform.OS === 'web' && width >= 900;
   const subscription = useAppStore((state) => state.subscription);
   const screen = useAppStore((state) => state.screen);
+  const previousScreen = useRef(screen);
   const navigate = useAppStore((state) => state.navigate);
   const addSubscription = useAppStore((state) => state.addSubscription);
   const hydrate = useAppStore((state) => state.hydrate);
@@ -76,6 +77,10 @@ export function RageNetApp() {
     void hydrate();
     initVpn();
   }, [hydrate, initVpn]);
+
+  useEffect(() => {
+    if (screen !== 'settings') previousScreen.current = screen;
+  }, [screen]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
@@ -122,6 +127,11 @@ export function RageNetApp() {
     );
   }
 
+  // Settings is a modal. When it is opened from Logs, keep Logs underneath
+  // instead of swapping in HomeScreen for one frame.
+  const baseScreen =
+    screen === 'settings' ? (previousScreen.current === 'logs' ? 'logs' : 'home') : screen;
+
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
@@ -131,13 +141,13 @@ export function RageNetApp() {
         ) : isDesktop ? (
           <>
             <DesktopShell onAddKey={() => openSheet('addKey')}>
-              {screen === 'logs' ? <LogsScreen /> : <HomeScreen desktop />}
+              {baseScreen === 'logs' ? <LogsScreen /> : <HomeScreen desktop />}
             </DesktopShell>
             <SettingsModal visible={screen === 'settings'} onClose={() => navigate('home')} />
           </>
         ) : (
           <>
-            {screen === 'logs' ? <LogsScreen /> : <HomeScreen />}
+            {baseScreen === 'logs' ? <LogsScreen /> : <HomeScreen />}
             <SettingsModal visible={screen === 'settings'} onClose={() => navigate('home')} />
           </>
         )}

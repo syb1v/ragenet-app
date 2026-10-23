@@ -1,5 +1,6 @@
 import type { ParticleMode, ParticleSphereSimulation } from '@ragenet/particles';
 import { useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import Svg, { Circle, ClipPath, Defs, G, Path, RadialGradient, Stop } from 'react-native-svg';
 
 interface ParticleRendererProps {
@@ -40,23 +41,28 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
   const offset = (surface - size) / 2;
   const modeRef = useRef(mode);
   modeRef.current = mode;
-  const [paths, setPaths] = useState<[string, string, string]>(['', '', '']);
   const colorRef = useRef<[number, number, number]>([118, 137, 166]);
   const glowRef = useRef(0.08);
-  const [glow, setGlow] = useState(0.08);
-  const [color, setColor] = useState('rgb(118, 137, 166)');
-  const [strokeWidth, setStrokeWidth] = useState(1.2);
-  const [waveRing, setWaveRing] = useState<{
-    x: number;
-    y: number;
-    r: number;
-    opacity: number;
-  } | null>(null);
+  const [visual, setVisual] = useState<{
+    paths: [string, string, string];
+    color: string;
+    glow: number;
+    strokeWidth: number;
+    waveRing: { x: number; y: number; r: number; opacity: number } | null;
+  }>({
+    paths: ['', '', ''],
+    color: 'rgb(118, 137, 166)',
+    glow: 0.08,
+    strokeWidth: 1.2,
+    waveRing: null,
+  });
+  const { color, glow, paths, strokeWidth, waveRing } = visual;
 
   useEffect(() => {
     let animation = 0;
     let last = Date.now();
     let lastPaint = 0;
+    const paintInterval = Platform.OS === 'android' ? 33 : 16;
 
     const loop = () => {
       const now = Date.now();
@@ -64,7 +70,7 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
       last = now;
       simulation.update(dt);
 
-      if (now - lastPaint >= 16) {
+      if (now - lastPaint >= paintInterval) {
         lastPaint = now;
         const projected = simulation.project(size);
         const buckets: [string[], string[], string[]] = [[], [], []];
@@ -75,7 +81,11 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
           const bucket = radius < 1.1 ? 0 : radius < 1.75 ? 1 : 2;
           buckets[bucket].push(`M${x} ${y}l0.01 0`);
         }
-        setPaths([buckets[0].join(''), buckets[1].join(''), buckets[2].join('')]);
+        const paths: [string, string, string] = [
+          buckets[0].join(''),
+          buckets[1].join(''),
+          buckets[2].join(''),
+        ];
 
         const probe = simulation.probeLevel;
         const target = mixColor(
@@ -89,30 +99,33 @@ export function ParticleRenderer({ simulation, size, surfaceSize, mode }: Partic
           current[channel] += (target[channel] - current[channel]) * blend;
         }
         const boost = simulation.reaction * 26;
-        setColor(
-          `rgb(${Math.min(255, Math.round(current[0] + boost))}, ${Math.min(
-            255,
-            Math.round(current[1] + boost),
-          )}, ${Math.min(255, Math.round(current[2] + boost))})`,
-        );
-        setStrokeWidth(1.35 + simulation.charge * 0.35 + simulation.reaction * 0.15 + probe * 0.24);
+        const color = `rgb(${Math.min(255, Math.round(current[0] + boost))}, ${Math.min(
+          255,
+          Math.round(current[1] + boost),
+        )}, ${Math.min(255, Math.round(current[2] + boost))})`;
+        const strokeWidth =
+          1.35 + simulation.charge * 0.35 + simulation.reaction * 0.15 + probe * 0.24;
         const targetGlow =
           (modeRef.current === 'connected' ? 0.24 : 0.03 + simulation.charge * 0.18) +
           simulation.burstGlow * 0.16 +
           probe * 0.14;
         glowRef.current += (targetGlow - glowRef.current) * Math.min(1, dt * 1.8);
-        setGlow(glowRef.current);
         const wave = simulation.getWave();
-        setWaveRing(
-          wave
-            ? {
-                x: offset + size / 2 + (wave.x * 2 - 1) * size * 0.37,
-                y: offset + size / 2 + (wave.y * 2 - 1) * size * 0.37,
-                r: wave.progress * size * 1.22,
-                opacity: (1 - wave.progress) ** 1.5 * 0.07 * wave.strength,
-              }
-            : null,
-        );
+        const waveRing = wave
+          ? {
+              x: offset + size / 2 + (wave.x * 2 - 1) * size * 0.37,
+              y: offset + size / 2 + (wave.y * 2 - 1) * size * 0.37,
+              r: wave.progress * size * 1.22,
+              opacity: (1 - wave.progress) ** 1.5 * 0.07 * wave.strength,
+            }
+          : null;
+        setVisual({
+          paths,
+          color,
+          strokeWidth,
+          glow: glowRef.current,
+          waveRing,
+        });
       }
 
       animation = requestAnimationFrame(loop);

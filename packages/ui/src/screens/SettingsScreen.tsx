@@ -72,8 +72,8 @@ export function SettingsScreen({ onClose }: SettingsScreenProps = {}) {
   const showToast = useAppStore((state) => state.showToast);
   const subscription = useAppStore((state) => state.subscription);
   const supportUrl = subscription?.meta.supportUrl ?? TELEGRAM_SUPPORT_URL;
-  const appVersion = '0.3.18';
-  const buildNumber = '21';
+  const appVersion = '0.3.19';
+  const buildNumber = '22';
 
   const openSupport = async () => {
     try {
@@ -114,13 +114,6 @@ export function SettingsScreen({ onClose }: SettingsScreenProps = {}) {
       >
         <SectionLabel>Ссылки</SectionLabel>
         <Card padded={false}>
-          <SettingRow
-            icon={
-              <PlatformIcon name="wifi" size={21} color={colors.brandStrong} strokeWidth={1.7} />
-            }
-            label="Сервер по типу сети"
-            onPress={() => showToast('Появится в следующей сборке')}
-          />
           <SettingRow
             icon={<PlatformIcon name="file" size={21} color={colors.brandStrong} />}
             label="Логи"

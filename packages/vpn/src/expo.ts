@@ -31,6 +31,7 @@ interface NativeVpnModule {
   measureHttpLatency(url: string, timeoutMs: number): Promise<number | null>;
   measureLatency(host: string, port: number, timeoutMs: number): Promise<number | null>;
   pingBatch(payload: string, timeoutMs: number): Promise<string | null>;
+  reset?(): MaybePromise<boolean>;
   getLogs(): MaybePromise<{ time: number; level: string; message: string }[]>;
   clearLogs(): MaybePromise<boolean>;
 }
@@ -80,6 +81,9 @@ export function createVpnBridge(): VpnBridge {
         })
         .then(() => undefined),
     stop: () => native.stop().then(() => undefined),
+    ...(native.reset
+      ? { reset: () => Promise.resolve(native.reset!()).then(() => undefined) }
+      : {}),
     // Expo exposes some module functions synchronously on Android (and some
     // iOS functions are sync too). Normalize both shapes before the UI calls
     // `.then()`; otherwise a release app crashes during initVpn().

@@ -124,7 +124,7 @@ export const DEVICE = {
   os: platformName(),
   osVersion: Platform.Version?.toString() ?? 'unknown',
   model: deviceModel(),
-  appVersion: Constants.expoConfig?.version ?? '0.3.18',
+  appVersion: Constants.expoConfig?.version ?? '0.3.19',
 };
 
 let vpnBridge: VpnBridge | null = null;
@@ -629,6 +629,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         const status = await bridge.getStatus();
         set({ vpnStatus: status });
       } catch (error) {
+        try {
+          await bridge.reset?.();
+        } catch {
+          // Best effort; the next start also resets a stale profile.
+        }
         const message = error instanceof Error ? error.message : 'Не удалось переключить локацию';
         get().addLog(message, 'error');
         get().showToast(message);
@@ -717,6 +722,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         killSwitch: get().settings.killSwitch,
       });
     } catch (error) {
+      try {
+        await bridge.reset?.();
+      } catch {
+        // Best effort; the next start also resets a stale profile.
+      }
       const message = error instanceof Error ? error.message : 'Не удалось переключить VPN';
       get().addLog(message, 'error');
       get().showToast(message);

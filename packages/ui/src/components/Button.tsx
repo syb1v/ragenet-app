@@ -85,7 +85,9 @@ export function Button({
       ]}
     >
       {icon ? <View style={styles.icon}>{icon}</View> : null}
-      <Text style={[styles.label, { color: variantStyle.color }]}>{label}</Text>
+      <Text numberOfLines={2} style={[styles.label, { color: variantStyle.color }]}>
+        {label}
+      </Text>
       {rightIcon ? <View style={styles.icon}>{rightIcon}</View> : null}
     </Pressable>
   );
@@ -98,14 +100,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: 10,
-    height: layout.buttonHeight,
     justifyContent: 'center',
+    minHeight: layout.buttonHeight,
     paddingHorizontal: 20,
+    paddingVertical: 8,
   },
   label: {
+    flexShrink: 1,
     fontFamily: fonts.semibold,
     fontSize: 16,
     lineHeight: 22,
+    textAlign: 'center',
   },
   icon: {
     alignItems: 'center',

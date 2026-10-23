@@ -1,6 +1,6 @@
 {
   "name": "ragenet-app",
-  "version": "0.3.18",
+  "version": "0.3.19",
   "private": true,
   "license": "AGPL-3.0",
   "packageManager": "pnpm@12.14.0",

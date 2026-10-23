@@ -40,6 +40,11 @@ export class MockVpnBridge implements VpnBridge {
     });
   }
 
+  async reset(): Promise<void> {
+    this.stopTimer();
+    this.set({ state: 'disconnected' });
+  }
+
   async stop(): Promise<void> {
     this.stopTimer();
     this.log('info', 'Mock tunnel stop requested');

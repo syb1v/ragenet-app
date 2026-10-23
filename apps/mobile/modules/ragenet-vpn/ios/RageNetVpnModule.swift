@@ -25,6 +25,19 @@ public final class RageNetVpnModule: Module {
     }
 
     AsyncFunction("start") { (config: String, _: [String: Any]) async throws -> Bool in
+      // A previous extension can remain stuck after disconnect. Starting from
+      // a fresh NetworkExtension profile is the only reliable recovery short
+      // of rebooting the phone.
+      let existing = try await loadManager()
+      manager = existing
+      if existing.connection.status != .disconnected || existing.isEnabled {
+        existing.connection.stopVPNTunnel()
+        _ = await waitForStatus(.disconnected, timeout: 2.5)
+      }
+      if existing.connection.status == .disconnected {
+        try await resetTunnel()
+      }
+
       let tunnel = try await loadManager()
       let proto = NETunnelProviderProtocol()
       proto.providerBundleIdentifier = providerBundleIdentifier
@@ -47,6 +60,15 @@ public final class RageNetVpnModule: Module {
         manager = try await loadManager()
       }
       manager?.connection.stopVPNTunnel()
+      _ = await waitForStatus(.disconnected, timeout: 2.5)
+      return true
+    }
+
+    /// Clear a stale NetworkExtension profile. This is safe to call while the
+    /// provider is hung: stop, remove the matching profile, and let the next
+    /// start create a fresh manager.
+    AsyncFunction("reset") { () async throws -> Bool in
+      try await resetTunnel()
       return true
     }
 
@@ -326,8 +348,8 @@ public final class RageNetVpnModule: Module {
     }
   }
 
-  private func loadManager() async throws -> NETunnelProviderManager {
-    let managers = try await withCheckedThrowingContinuation {
+  private func loadManagers() async throws -> [NETunnelProviderManager] {
+    try await withCheckedThrowingContinuation {
       (continuation: CheckedContinuation<[NETunnelProviderManager], Error>) in
       NETunnelProviderManager.loadAllFromPreferences { managers, error in
         if let error {
@@ -337,14 +359,59 @@ public final class RageNetVpnModule: Module {
         }
       }
     }
+  }
 
-    if let existing = managers.first(where: {
+  private func matchingManagers() async throws -> [NETunnelProviderManager] {
+    try await loadManagers().filter {
       ($0.protocolConfiguration as? NETunnelProviderProtocol)?.providerBundleIdentifier
         == providerBundleIdentifier
-    }) {
-      return existing
     }
-    return NETunnelProviderManager()
+  }
+
+  private func loadManager() async throws -> NETunnelProviderManager {
+    let managers = try await matchingManagers()
+    return managers.first ?? NETunnelProviderManager()
+  }
+
+  private func waitForStatus(
+    _ expected: NEVPNStatus,
+    timeout: TimeInterval
+  ) async -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+      if manager?.connection.status == expected {
+        return true
+      }
+      try? await Task.sleep(nanoseconds: 100_000_000)
+    }
+    return manager?.connection.status == expected
+  }
+
+  private func removeFromPreferences(_ tunnel: NETunnelProviderManager) async throws {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      tunnel.removeFromPreferences { error in
+        if let error {
+          continuation.resume(throwing: error)
+        } else {
+          continuation.resume()
+        }
+      }
+    }
+  }
+
+  private func resetTunnel() async throws {
+    let managers = try await matchingManagers()
+    manager = managers.first
+    for tunnel in managers {
+      tunnel.connection.stopVPNTunnel()
+    }
+    _ = await waitForStatus(.disconnected, timeout: 2.0)
+    for tunnel in managers {
+      tunnel.isEnabled = false
+      try? await save(tunnel)
+      try? await removeFromPreferences(tunnel)
+    }
+    manager = nil
   }
 
   private func save(_ tunnel: NETunnelProviderManager) async throws {

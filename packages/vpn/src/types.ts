@@ -42,6 +42,8 @@ export interface VpnBridge {
   prepare(): Promise<boolean>;
   start(options: StartVpnOptions): Promise<void>;
   stop(): Promise<void>;
+  /** Clear a stale native tunnel profile before the next start. */
+  reset?(): Promise<void>;
   getStatus(): Promise<VpnStatus>;
   subscribe(listener: VpnEventListener): () => void;
   /** Stable per-device identifier used as the Remnawave `x-hwid` header. */

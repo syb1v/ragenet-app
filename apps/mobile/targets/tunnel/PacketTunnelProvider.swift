@@ -29,19 +29,34 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
       }
       self.reasserting = true
       do {
-        try await self.applyNetworkSettings()
+        try await self.withTimeout(seconds: 10) {
+          try await self.applyNetworkSettings()
+        }
         TunnelLogStore.info("Tunnel network settings applied")
-        let fd = try await self.waitForTunnelDescriptor()
+        let fd = try await self.withTimeout(seconds: 5) {
+          try await self.waitForTunnelDescriptor()
+        }
         let runtimeConfig = try self.configWithDescriptor(config, fd: fd)
-        try LibXrayRuntime.start(configJSON: runtimeConfig)
-        guard try LibXrayRuntime.isRunning() else {
+        try await self.withTimeout(seconds: 15) {
+          try await Task.detached(priority: .userInitiated) {
+            try LibXrayRuntime.start(configJSON: runtimeConfig)
+          }.value
+        }
+        let running = try await self.withTimeout(seconds: 3) {
+          try await Task.detached(priority: .userInitiated) {
+            try LibXrayRuntime.isRunning()
+          }.value
+        }
+        guard running else {
           throw TunnelError.xrayNotRunning
         }
         self.reasserting = false
         TunnelLogStore.info("Tunnel connected")
         completionHandler(nil)
       } catch {
-        try? LibXrayRuntime.stop()
+        Task.detached(priority: .utility) {
+          try? LibXrayRuntime.stop()
+        }
         self.reasserting = false
         TunnelLogStore.error("Tunnel failed: \(error.localizedDescription)")
         completionHandler(error)
@@ -62,10 +77,36 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
 
     Task {
       TunnelLogStore.info("Tunnel stop requested: \(reason.rawValue)")
-      try? LibXrayRuntime.stop()
+      do {
+        try await self.withTimeout(seconds: 5) {
+          try await Task.detached(priority: .userInitiated) {
+            try LibXrayRuntime.stop()
+          }.value
+        }
+      } catch {
+        TunnelLogStore.error("Tunnel stop timed out: \(error.localizedDescription)")
+      }
       self.reasserting = false
       TunnelLogStore.info("Tunnel stopped")
       completionHandler()
+    }
+  }
+
+  private func withTimeout<T>(
+    seconds: Double,
+    operation: @escaping @Sendable () async throws -> T
+  ) async throws -> T {
+    try await withThrowingTaskGroup(of: T.self) { group in
+      group.addTask { try await operation() }
+      group.addTask {
+        try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+        throw TunnelError.timeout
+      }
+      guard let result = try await group.next() else {
+        throw TunnelError.timeout
+      }
+      group.cancelAll()
+      return result
     }
   }
 
@@ -164,6 +205,7 @@ private enum TunnelError: LocalizedError {
   case invalidConfiguration
   case missingDescriptor
   case xrayNotRunning
+  case timeout
 
   var errorDescription: String? {
     switch self {
@@ -177,6 +219,8 @@ private enum TunnelError: LocalizedError {
       return "Не удалось получить utun-дескриптор"
     case .xrayNotRunning:
       return "Xray не запустился"
+    case .timeout:
+      return "Таймаут запуска или остановки туннеля"
     }
   }
 }

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.19] - 2026-10-23
+
+### Fixed
+
+- Android VPN permission now waits for the system consent result and continues
+  starting the tunnel instead of showing a toast and stopping.
+- Android per-location ping now initializes libXray in the isolated `:ping`
+  process and logs failures instead of silently returning no results.
+- iOS now resets a stale NetworkExtension profile before starting, waits for
+  disconnect, and bounds tunnel start/stop timeouts.
+- Returning from Logs to Settings no longer flashes HomeScreen underneath the
+  settings modal.
+
+### Changed
+
+- Android uses a smaller particle cloud and 30 fps painting on compact devices;
+  renderer state is batched into one update per frame.
+- Button labels can wrap to two lines and stay centered instead of clipping.
+- Removed the dead "Сервер по типу сети" settings row.
+
 ## [0.3.18] - 2026-10-23
 
 ### Changed

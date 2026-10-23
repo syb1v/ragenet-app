@@ -7,6 +7,7 @@ import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.os.IBinder
 import android.os.ResultReceiver
+import android.util.Log
 import libXray.LibXray
 import org.json.JSONObject
 
@@ -17,6 +18,7 @@ import org.json.JSONObject
  */
 class RageNetPingService : Service() {
   companion object {
+    const val TAG = "RageNetPingService"
     const val EXTRA_PAYLOAD = "payload"
     const val EXTRA_RECEIVER = "receiver"
     const val EXTRA_RESULT = "result"
@@ -34,12 +36,26 @@ class RageNetPingService : Service() {
 
     Thread {
       val connectivity = bindUnderlyingNetwork()
+      if (connectivity == null) {
+        Log.e(TAG, "pingBatch failed: underlying network is unavailable")
+      }
       val result = if (connectivity == null) {
         errorResponse("underlying network is unavailable")
       } else {
         try {
-          LibXray.invoke(payload)
-        } catch (error: Exception) {
+          // The active tunnel lives in the main process. This isolated process
+          // must initialize libXray before invoking it.
+          LibXray.touch()
+          val response = LibXray.invoke(payload)
+          val success = try {
+            JSONObject(response).optBoolean("success")
+          } catch (_: Exception) {
+            false
+          }
+          if (!success) Log.e(TAG, "pingBatch returned an unsuccessful response")
+          response
+        } catch (error: Throwable) {
+          Log.e(TAG, "pingBatch failed", error)
           errorResponse(error.message ?: "pingBatch failed")
         } finally {
           connectivity.bindProcessToNetwork(null)

@@ -67,5 +67,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     fontSize: 13,
     lineHeight: 18,
+    textAlign: 'center',
   },
 });

@@ -19,32 +19,64 @@ import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeoutOrNull
 
 class RageNetVpnModule : Module() {
+  private companion object {
+    const val VPN_PERMISSION_REQUEST = 0x5650
+  }
+
   private var removeStatusListener: (() -> Unit)? = null
   private var removeLogListener: (() -> Unit)? = null
   private val mainHandler = Handler(Looper.getMainLooper())
+  @Volatile private var pendingVpnPermission: CompletableDeferred<Boolean>? = null
 
   override fun definition() = ModuleDefinition {
     Name("RageNetVpn")
 
     Events("onVpnStatus", "onVpnLog")
 
-    Function("prepare") {
-      val context = appContext.reactContext ?: return@Function false
+    AsyncFunction("prepare") {
+      val context = appContext.reactContext ?: return@AsyncFunction false
       val intent = VpnService.prepare(context)
-      if (intent == null) {
-        true
-      } else {
+      if (intent == null) return@AsyncFunction true
+
+      val activity = appContext.currentActivity
+      if (activity == null) {
+        // No foreground activity to host the system consent screen. Ask the
+        // user to retry from the app instead of silently doing nothing.
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        val activity = appContext.currentActivity
-        if (activity != null) {
-          activity.startActivity(intent)
-        } else {
+        try {
           context.startActivity(intent)
+        } catch (_: Exception) {
+          // The JS layer will show the permission message.
         }
+        return@AsyncFunction false
+      }
+
+      val deferred = CompletableDeferred<Boolean>()
+      pendingVpnPermission = deferred
+      try {
+        activity.startActivityForResult(intent, VPN_PERMISSION_REQUEST)
+      } catch (_: Exception) {
+        pendingVpnPermission = null
+        return@AsyncFunction false
+      }
+      // The consent dialog is a separate activity. Wait for its result so the
+      // JS caller can continue to start the tunnel in the same interaction.
+      withTimeoutOrNull(60_000) { deferred.await() } ?: false
+    }
+
+    OnActivityResult { activity, payload ->
+      if (payload.requestCode != VPN_PERMISSION_REQUEST) return@OnActivityResult
+      val granted = try {
+        VpnService.prepare(activity) == null
+      } catch (_: Exception) {
         false
       }
+      pendingVpnPermission?.complete(granted)
+      pendingVpnPermission = null
     }
 
     AsyncFunction("start") { config: String, options: Map<String, Any?> ->

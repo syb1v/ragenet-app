@@ -44,7 +44,13 @@ export function ParticleSphere({
   const hitRadius = size * 0.46;
   const surfaceSize = size * 2.4;
   const surfaceOffset = (surfaceSize - size) / 2;
-  const simulation = useMemo(() => new ParticleSphereSimulation({ count: 560 }), []);
+  // The simulation and the SVG renderer both run on the JS thread. Budget
+  // Android devices get a smaller cloud; high-end devices keep the full one.
+  const particleCount = Platform.OS === 'android' ? (width <= 380 ? 320 : 420) : 560;
+  const simulation = useMemo(
+    () => new ParticleSphereSimulation({ count: particleCount }),
+    [particleCount],
+  );
 
   const pressing = useRef(false);
   const triggeredByHold = useRef(false);
@@ -121,7 +127,7 @@ export function ParticleSphere({
     if (hapticTimer.current) return;
     hapticTimer.current = setInterval(() => {
       particleHaptics.update(simulation.getHapticSnapshot());
-    }, 32);
+    }, 50);
   };
 
   useEffect(
