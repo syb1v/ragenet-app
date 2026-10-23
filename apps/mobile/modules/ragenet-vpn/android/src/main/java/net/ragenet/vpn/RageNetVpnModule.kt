@@ -8,6 +8,7 @@ import android.os.Looper
 import android.os.ResultReceiver
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
@@ -19,8 +20,6 @@ import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.withTimeoutOrNull
 
 class RageNetVpnModule : Module() {
   private companion object {
@@ -30,17 +29,25 @@ class RageNetVpnModule : Module() {
   private var removeStatusListener: (() -> Unit)? = null
   private var removeLogListener: (() -> Unit)? = null
   private val mainHandler = Handler(Looper.getMainLooper())
-  @Volatile private var pendingVpnPermission: CompletableDeferred<Boolean>? = null
+  @Volatile private var pendingVpnPermission: Promise? = null
+  private var pendingVpnTimeout: Runnable? = null
 
   override fun definition() = ModuleDefinition {
     Name("RageNetVpn")
 
     Events("onVpnStatus", "onVpnLog")
 
-    AsyncFunction("prepare") {
-      val context = appContext.reactContext ?: return@AsyncFunction false
+    AsyncFunction("prepare") { promise: Promise ->
+      val context = appContext.reactContext
+      if (context == null) {
+        promise.resolve(false)
+        return@AsyncFunction
+      }
       val intent = VpnService.prepare(context)
-      if (intent == null) return@AsyncFunction true
+      if (intent == null) {
+        promise.resolve(true)
+        return@AsyncFunction
+      }
 
       val activity = appContext.currentActivity
       if (activity == null) {
@@ -52,31 +59,42 @@ class RageNetVpnModule : Module() {
         } catch (_: Exception) {
           // The JS layer will show the permission message.
         }
-        return@AsyncFunction false
+        promise.resolve(false)
+        return@AsyncFunction
       }
 
-      val deferred = CompletableDeferred<Boolean>()
-      pendingVpnPermission = deferred
+      pendingVpnPermission = promise
+      pendingVpnTimeout?.let { mainHandler.removeCallbacks(it) }
+      val timeout = Runnable {
+        if (pendingVpnPermission === promise) {
+          pendingVpnPermission = null
+          promise.resolve(false)
+        }
+      }
+      pendingVpnTimeout = timeout
+      mainHandler.postDelayed(timeout, 60_000)
       try {
         activity.startActivityForResult(intent, VPN_PERMISSION_REQUEST)
       } catch (_: Exception) {
+        mainHandler.removeCallbacks(timeout)
         pendingVpnPermission = null
-        return@AsyncFunction false
+        promise.resolve(false)
       }
-      // The consent dialog is a separate activity. Wait for its result so the
-      // JS caller can continue to start the tunnel in the same interaction.
-      withTimeoutOrNull(60_000) { deferred.await() } ?: false
     }
 
     OnActivityResult { activity, payload ->
-      if (payload.requestCode != VPN_PERMISSION_REQUEST) return@OnActivityResult
-      val granted = try {
-        VpnService.prepare(activity) == null
-      } catch (_: Exception) {
-        false
+      if (payload.requestCode == VPN_PERMISSION_REQUEST) {
+        val granted = try {
+          VpnService.prepare(activity) == null
+        } catch (_: Exception) {
+          false
+        }
+        pendingVpnTimeout?.let { mainHandler.removeCallbacks(it) }
+        pendingVpnTimeout = null
+        val promise = pendingVpnPermission
+        pendingVpnPermission = null
+        promise?.resolve(granted)
       }
-      pendingVpnPermission?.complete(granted)
-      pendingVpnPermission = null
     }
 
     AsyncFunction("start") { config: String, options: Map<String, Any?> ->
